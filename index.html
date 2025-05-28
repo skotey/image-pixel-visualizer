@@ -84,8 +84,13 @@
             border-radius: 4px;
             font-size: 14px;
             font-family: 'Helvetica', 'Arial', sans-serif;
-            background-color: #f8f9fa;
-            cursor: not-allowed;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #333;
         }
 
         .instructions {
@@ -179,11 +184,11 @@
         <div class="controls hidden" id="controls">
             <div class="control-group">
                 <label for="maxSize">Matrix Resolution</label>
-                <input type="number" id="maxSize" value="50" min="10" max="100" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+                <input type="number" id="maxSize" value="50" min="10" max="100">
             </div>
             <div class="control-group">
                 <label for="digitMode">Display Mode</label>
-                <select id="digitMode" disabled style="background-color: #f8f9fa; cursor: not-allowed;">
+                <select id="digitMode">
                     <option value="1">Single Digit (0-9)</option>
                     <option value="2">Two Digits (0-99)</option>
                     <option value="3" selected>Three Digits (0-255)</option>
@@ -219,6 +224,8 @@
 
         // Initialize
         document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+        document.getElementById('maxSize').addEventListener('input', updateVisualization);
+        document.getElementById('digitMode').addEventListener('change', updateVisualization);
 
         function handleImageUpload(event) {
             const file = event.target.files[0];
@@ -415,7 +422,11 @@
                 const centerX = blockX + window.blockWidth / 2;
                 const centerY = blockY + window.blockHeight / 2;
                 
-                ctx.fillText(pixel.grayscale.toString().padStart(3, '0'), centerX, centerY);
+                // Draw the number with selected display mode
+                const digitMode = parseInt(document.getElementById('digitMode').value);
+                const displayValue = formatPixelValue(pixel.grayscale, digitMode);
+                
+                ctx.fillText(displayValue, centerX, centerY);
                 
                 ctx.restore();
             }
@@ -447,6 +458,31 @@
                 if (window.pixelatedImageData) {
                     ctx.putImageData(window.pixelatedImageData, 0, 0);
                 }
+            }
+        }
+
+        function updateVisualization() {
+            if (!window.originalImage) return;
+            
+            // Reset revealed pixels when settings change
+            if (window.revealedPixels) {
+                window.revealedPixels.clear();
+            }
+            
+            // Reprocess the image with new settings
+            processImage(window.originalImage);
+        }
+
+        function formatPixelValue(grayscale, digitMode) {
+            switch(digitMode) {
+                case 1:
+                    return Math.floor(grayscale / 28.33); // 0-9
+                case 2:
+                    return Math.floor(grayscale / 2.55).toString().padStart(2, '0'); // 00-99
+                case 3:
+                    return grayscale.toString().padStart(3, '0'); // 000-255
+                default:
+                    return grayscale.toString().padStart(3, '0');
             }
         }
     </script>
