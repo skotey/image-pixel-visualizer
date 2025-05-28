@@ -44,6 +44,25 @@
             line-height: 1.5;
         }
 
+        .tokenizer-info {
+            background: #f0f8ff;
+            border: 1px solid #d1ecf1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .tokenizer-info a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .tokenizer-info a:hover {
+            text-decoration: underline;
+        }
+
         .input-section {
             margin-bottom: 30px;
         }
@@ -101,6 +120,7 @@
             transition: all 0.2s;
             position: relative;
             white-space: pre;
+            border: 1px solid rgba(0,0,0,0.1);
         }
 
         .token:hover {
@@ -200,8 +220,24 @@
         .token-id {
             font-weight: bold;
             color: #666;
-            min-width: 60px;
+            min-width: 80px;
             text-align: right;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
         }
 
         @media (max-width: 768px) {
@@ -224,7 +260,13 @@
         <h1>How AI Reads Text</h1>
         
         <div class="description">
-            Large Language Models (LLMs) don't read text the way humans do. They break text into small pieces called "tokens" and convert each piece into numbers. Hover over the colored tokens below to see their numeric IDs.
+            Large Language Models (LLMs) don't read text the way humans do. They break text into small pieces called "tokens" and convert each piece into numbers. This uses the actual GPT tokenizer to show you real tokenization.
+        </div>
+
+        <div class="tokenizer-info">
+            <strong>Using:</strong> GPT-3/GPT-4 Tokenizer (cl100k_base encoding) • 
+            <strong>Library:</strong> <a href="https://github.com/niieani/gpt-tokenizer" target="_blank">gpt-tokenizer</a> • 
+            <strong>Based on:</strong> <a href="https://github.com/openai/tiktoken" target="_blank">OpenAI's tiktoken</a>
         </div>
 
         <div class="input-section">
@@ -239,7 +281,7 @@
         <div class="visualization-section">
             <div class="section-title">Tokenized Text (hover to see token IDs):</div>
             <div id="tokenizedOutput" class="tokenized-text">
-                <!-- Tokens will appear here -->
+                <div class="loading">Loading tokenizer...</div>
             </div>
         </div>
 
@@ -263,97 +305,32 @@
         <div class="visualization-section">
             <div class="section-title">Token → Number Mapping:</div>
             <div id="tokenList" class="token-list">
-                <!-- Token list will appear here -->
+                <div class="loading">Enter text above to see token mappings...</div>
             </div>
         </div>
     </div>
 
+    <!-- Load the GPT tokenizer library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/gpt-tokenizer@2.1.2/dist/gpt-tokenizer.umd.min.js"></script>
+    
     <script>
-        // Simple tokenizer that mimics basic LLM tokenization patterns
-        let tokenMap = new Map();
-        let nextTokenId = 1000;
+        let tokenizer = null;
+        let isLoading = true;
 
-        // Pre-populate with common tokens
-        const commonTokens = {
-            'The': 464, 'the': 1552, ' the': 279,
-            'cat': 4719, ' cat': 2415,
-            'sat': 3332, ' sat': 7731,
-            'on': 389, ' on': 319,
-            'mat': 5637, ' mat': 6364,
-            'a': 64, ' a': 264, 'A': 32,
-            'and': 323, ' and': 323,
-            'is': 374, ' is': 374,
-            'to': 311, ' to': 311,
-            'of': 315, ' of': 315,
-            'in': 304, ' in': 304,
-            'for': 369, ' for': 369,
-            'with': 449, ' with': 449,
-            'was': 574, ' was': 574,
-            'but': 719, ' but': 719,
-            'not': 539, ' not': 539,
-            'you': 345, ' you': 345,
-            'I': 40, ' I': 40,
-            'it': 433, ' it': 433,
-            'this': 420, ' this': 420,
-            'that': 430, ' that': 430,
-            'hello': 15339, ' hello': 24748,
-            'world': 14957, ' world': 14957,
-            'AI': 15836, ' AI': 15836,
-            'text': 1495, ' text': 1495,
-            'language': 4221, ' language': 4221,
-            'model': 1342, ' model': 1342,
-            '.': 13, '!': 0, '?': 30, ',': 11, ':': 25, ';': 26,
-            ' ': 220, '\n': 198
-        };
-
-        // Initialize token map
-        Object.entries(commonTokens).forEach(([token, id]) => {
-            tokenMap.set(token, id);
-        });
-
-        function getTokenId(token) {
-            if (tokenMap.has(token)) {
-                return tokenMap.get(token);
+        // Initialize the tokenizer
+        async function initTokenizer() {
+            try {
+                // Use the cl100k_base encoding (GPT-3.5/GPT-4)
+                tokenizer = await GPTTokenizer_cl100k_base.GPTTokenizer.load();
+                isLoading = false;
+                updateVisualization();
+            } catch (error) {
+                console.error('Failed to load tokenizer:', error);
+                document.getElementById('tokenizedOutput').innerHTML = 
+                    '<div class="error">Failed to load tokenizer. Please refresh the page to try again.</div>';
+                document.getElementById('tokenList').innerHTML = 
+                    '<div class="error">Tokenizer not available</div>';
             }
-            // Generate a new ID for unknown tokens
-            const newId = nextTokenId++;
-            tokenMap.set(token, newId);
-            return newId;
-        }
-
-        function simpleTokenize(text) {
-            if (!text.trim()) return [];
-            
-            const tokens = [];
-            let i = 0;
-            
-            while (i < text.length) {
-                let bestMatch = '';
-                let bestLength = 0;
-                
-                // Try to find the longest matching token starting at position i
-                for (let len = Math.min(20, text.length - i); len >= 1; len--) {
-                    const candidate = text.substr(i, len);
-                    if (tokenMap.has(candidate)) {
-                        if (len > bestLength) {
-                            bestMatch = candidate;
-                            bestLength = len;
-                        }
-                    }
-                }
-                
-                if (bestMatch) {
-                    tokens.push(bestMatch);
-                    i += bestLength;
-                } else {
-                    // Handle unknown character/sequence
-                    const char = text[i];
-                    tokens.push(char);
-                    i++;
-                }
-            }
-            
-            return tokens;
         }
 
         function getTokenColor(tokenId) {
@@ -361,79 +338,108 @@
             const colors = [
                 '#FFE5E5', '#E5F3FF', '#E5FFE5', '#FFF3E5', '#F3E5FF',
                 '#FFE5F3', '#E5FFFF', '#F5FFE5', '#FFE5CC', '#E5E5FF',
-                '#CCFFE5', '#FFCCF3', '#CCF3FF', '#F3FFCC', '#FFCCCC'
+                '#CCFFE5', '#FFCCF3', '#CCF3FF', '#F3FFCC', '#FFCCCC',
+                '#E5CCFF', '#CCFFE5', '#FFCC99', '#99CCFF', '#FF99CC'
             ];
-            return colors[tokenId % colors.length];
+            return colors[Math.abs(tokenId) % colors.length];
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function updateVisualization() {
-            const inputText = document.getElementById('textInput').value;
-            const tokens = simpleTokenize(inputText);
-            
-            // Update tokenized output
-            const outputDiv = document.getElementById('tokenizedOutput');
-            outputDiv.innerHTML = '';
-            
-            if (tokens.length === 0) {
-                outputDiv.innerHTML = '<span style="color: #999; font-style: italic;">Enter some text above to see tokenization...</span>';
-            } else {
-                tokens.forEach(token => {
-                    const tokenId = getTokenId(token);
-                    const tokenElement = document.createElement('span');
-                    tokenElement.className = 'token';
-                    tokenElement.style.backgroundColor = getTokenColor(tokenId);
-                    tokenElement.textContent = token;
-                    
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'token-tooltip';
-                    tooltip.textContent = `Token ID: ${tokenId}`;
-                    tokenElement.appendChild(tooltip);
-                    
-                    outputDiv.appendChild(tokenElement);
-                });
+            if (isLoading || !tokenizer) {
+                return;
             }
+
+            const inputText = document.getElementById('textInput').value;
             
-            // Update stats
-            document.getElementById('characterCount').textContent = inputText.length;
-            document.getElementById('tokenCount').textContent = tokens.length;
-            document.getElementById('compressionRatio').textContent = 
-                tokens.length > 0 ? (inputText.length / tokens.length).toFixed(1) : '0';
-            
-            // Update token list
-            const tokenListDiv = document.getElementById('tokenList');
-            tokenListDiv.innerHTML = '';
-            
-            if (tokens.length === 0) {
-                tokenListDiv.innerHTML = '<div style="color: #999; font-style: italic; text-align: center;">No tokens to display</div>';
-            } else {
-                tokens.forEach((token, index) => {
-                    const tokenId = getTokenId(token);
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'token-item';
-                    
-                    const textSpan = document.createElement('span');
-                    textSpan.className = 'token-text';
-                    textSpan.textContent = `"${token}"`;
-                    
-                    const idSpan = document.createElement('span');
-                    idSpan.className = 'token-id';
-                    idSpan.textContent = tokenId;
-                    
-                    itemDiv.appendChild(textSpan);
-                    itemDiv.appendChild(idSpan);
-                    tokenListDiv.appendChild(itemDiv);
-                });
+            try {
+                // Tokenize the text
+                const tokens = tokenizer.encode(inputText, 'all');
+                const tokenStrings = tokens.map(tokenId => tokenizer.decode([tokenId]));
+                
+                // Update tokenized output
+                const outputDiv = document.getElementById('tokenizedOutput');
+                outputDiv.innerHTML = '';
+                
+                if (tokens.length === 0) {
+                    outputDiv.innerHTML = '<span style="color: #999; font-style: italic;">Enter some text above to see tokenization...</span>';
+                } else {
+                    tokens.forEach((tokenId, index) => {
+                        const tokenString = tokenStrings[index];
+                        const tokenElement = document.createElement('span');
+                        tokenElement.className = 'token';
+                        tokenElement.style.backgroundColor = getTokenColor(tokenId);
+                        
+                        // Display the token text, handling special characters
+                        const displayText = tokenString.replace(/\n/g, '↵').replace(/\t/g, '→');
+                        tokenElement.innerHTML = escapeHtml(displayText);
+                        
+                        const tooltip = document.createElement('div');
+                        tooltip.className = 'token-tooltip';
+                        tooltip.textContent = `Token ID: ${tokenId}`;
+                        tokenElement.appendChild(tooltip);
+                        
+                        outputDiv.appendChild(tokenElement);
+                    });
+                }
+                
+                // Update stats
+                document.getElementById('characterCount').textContent = inputText.length;
+                document.getElementById('tokenCount').textContent = tokens.length;
+                document.getElementById('compressionRatio').textContent = 
+                    tokens.length > 0 ? (inputText.length / tokens.length).toFixed(1) : '0';
+                
+                // Update token list
+                const tokenListDiv = document.getElementById('tokenList');
+                tokenListDiv.innerHTML = '';
+                
+                if (tokens.length === 0) {
+                    tokenListDiv.innerHTML = '<div style="color: #999; font-style: italic; text-align: center;">No tokens to display</div>';
+                } else {
+                    tokens.forEach((tokenId, index) => {
+                        const tokenString = tokenStrings[index];
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'token-item';
+                        
+                        const textSpan = document.createElement('span');
+                        textSpan.className = 'token-text';
+                        // Show special characters clearly
+                        const displayText = tokenString
+                            .replace(/\n/g, '\\n')
+                            .replace(/\t/g, '\\t')
+                            .replace(/ /g, '·'); // Show spaces as middle dots
+                        textSpan.textContent = `"${displayText}"`;
+                        
+                        const idSpan = document.createElement('span');
+                        idSpan.className = 'token-id';
+                        idSpan.textContent = tokenId;
+                        
+                        itemDiv.appendChild(textSpan);
+                        itemDiv.appendChild(idSpan);
+                        tokenListDiv.appendChild(itemDiv);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Tokenization error:', error);
+                document.getElementById('tokenizedOutput').innerHTML = 
+                    '<div class="error">Error processing text. Please try different input.</div>';
             }
         }
 
-        // Initialize
+        // Event listeners
         document.getElementById('textInput').addEventListener('input', updateVisualization);
         document.getElementById('textInput').addEventListener('paste', () => {
             setTimeout(updateVisualization, 10);
         });
 
-        // Initial visualization
-        updateVisualization();
+        // Initialize the tokenizer when page loads
+        initTokenizer();
     </script>
 </body>
 </html>
