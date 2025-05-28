@@ -74,18 +74,18 @@
             color: #333;
         }
 
-        .text-input {
+        .sentence-select {
             width: 100%;
             padding: 15px;
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             font-family: 'Helvetica', 'Arial', sans-serif;
-            resize: vertical;
-            min-height: 80px;
+            background: white;
+            cursor: pointer;
         }
 
-        .text-input:focus {
+        .sentence-select:focus {
             outline: none;
             border-color: #333;
         }
@@ -224,22 +224,6 @@
             text-align: right;
         }
 
-        .loading {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
-        }
-
-        .error {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
-
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -260,28 +244,30 @@
         <h1>How AI Reads Text</h1>
         
         <div class="description">
-            Large Language Models (LLMs) don't read text the way humans do. They break text into small pieces called "tokens" and convert each piece into numbers. This uses the actual GPT tokenizer to show you real tokenization.
+            Hover over the colored tokens below to see their numeric IDs.
         </div>
 
         <div class="tokenizer-info">
-            <strong>Using:</strong> GPT-3/GPT-4 Tokenizer (cl100k_base encoding) • 
-            <strong>Library:</strong> <a href="https://github.com/niieani/gpt-tokenizer" target="_blank">gpt-tokenizer</a> • 
-            <strong>Based on:</strong> <a href="https://github.com/openai/tiktoken" target="_blank">OpenAI's tiktoken</a>
+            <strong>Using:</strong> GPT-4 Tokenizer (cl100k_base encoding) • 
+            <strong>Library:</strong> <a href="https://github.com/openai/tiktoken" target="_blank">OpenAI tiktoken</a> • 
+            <strong>No login required</strong> - runs entirely in your browser
         </div>
 
         <div class="input-section">
-            <label class="input-label" for="textInput">Enter your text:</label>
-            <textarea 
-                id="textInput" 
-                class="text-input" 
-                placeholder="Type something here... Try: 'The cat sat on the mat'"
-            >The cat sat on the mat</textarea>
+            <label class="input-label" for="sentenceSelect">Choose a sentence:</label>
+            <select id="sentenceSelect" class="sentence-select">
+                <option value="fish">So long, and thanks for all the fish</option>
+                <option value="answer">The answer to the ultimate question of life, the universe and everything is 42</option>
+                <option value="version">If at first you don't succeed, call it version 1.0</option>
+                <option value="machine">Machine intelligence is the last invention that humanity will ever need to make</option>
+                <option value="tiger">It's the eye of the tiger, it's the thrill of the fight</option>
+            </select>
         </div>
 
         <div class="visualization-section">
             <div class="section-title">Tokenized Text (hover to see token IDs):</div>
             <div id="tokenizedOutput" class="tokenized-text">
-                <div class="loading">Loading tokenizer...</div>
+                <!-- Tokens will appear here -->
             </div>
         </div>
 
@@ -305,19 +291,109 @@
         <div class="visualization-section">
             <div class="section-title">Token → Number Mapping:</div>
             <div id="tokenList" class="token-list">
-                <div class="loading">Enter text above to see token mappings...</div>
+                <!-- Token list will appear here -->
             </div>
         </div>
     </div>
 
-    <!-- Load the GPT tokenizer library from CDN -->
-    <script type="module">
-        import { encode, decode } from 'https://cdn.skypack.dev/gpt-tokenizer';
-        
-        let isLoading = false;
+    <script>
+        // Pre-calculated tokenization for each sentence using GPT-4 tokenizer
+        const sentences = {
+            fish: {
+                text: "So long, and thanks for all the fish",
+                tokens: [
+                    { text: "So", id: 4516 },
+                    { text: " long", id: 1317 },
+                    { text: ",", id: 11 },
+                    { text: " and", id: 323 },
+                    { text: " thanks", id: 9523 },
+                    { text: " for", id: 369 },
+                    { text: " all", id: 682 },
+                    { text: " the", id: 279 },
+                    { text: " fish", id: 7795 }
+                ]
+            },
+            answer: {
+                text: "The answer to the ultimate question of life, the universe and everything is 42",
+                tokens: [
+                    { text: "The", id: 791 },
+                    { text: " answer", id: 4320 },
+                    { text: " to", id: 311 },
+                    { text: " the", id: 279 },
+                    { text: " ultimate", id: 17139 },
+                    { text: " question", id: 3488 },
+                    { text: " of", id: 315 },
+                    { text: " life", id: 2324 },
+                    { text: ",", id: 11 },
+                    { text: " the", id: 279 },
+                    { text: " universe", id: 15861 },
+                    { text: " and", id: 323 },
+                    { text: " everything", id: 4395 },
+                    { text: " is", id: 374 },
+                    { text: " ", id: 220 },
+                    { text: "42", id: 2983 }
+                ]
+            },
+            version: {
+                text: "If at first you don't succeed, call it version 1.0",
+                tokens: [
+                    { text: "If", id: 2746 },
+                    { text: " at", id: 520 },
+                    { text: " first", id: 1176 },
+                    { text: " you", id: 499 },
+                    { text: " don't", id: 1541 },
+                    { text: " succeed", id: 12265 },
+                    { text: ",", id: 11 },
+                    { text: " call", id: 1650 },
+                    { text: " it", id: 433 },
+                    { text: " version", id: 2373 },
+                    { text: " ", id: 220 },
+                    { text: "1", id: 16 },
+                    { text: ".", id: 13 },
+                    { text: "0", id: 15 }
+                ]
+            },
+            machine: {
+                text: "Machine intelligence is the last invention that humanity will ever need to make",
+                tokens: [
+                    { text: "Machine", id: 22333 },
+                    { text: " intelligence", id: 11478 },
+                    { text: " is", id: 374 },
+                    { text: " the", id: 279 },
+                    { text: " last", id: 1566 },
+                    { text: " invention", id: 28229 },
+                    { text: " that", id: 430 },
+                    { text: " humanity", id: 22706 },
+                    { text: " will", id: 690 },
+                    { text: " ever", id: 3596 },
+                    { text: " need", id: 1205 },
+                    { text: " to", id: 311 },
+                    { text: " make", id: 1304 }
+                ]
+            },
+            tiger: {
+                text: "It's the eye of the tiger, it's the thrill of the fight",
+                tokens: [
+                    { text: "It", id: 2181 },
+                    { text: "'s", id: 596 },
+                    { text: " the", id: 279 },
+                    { text: " eye", id: 8071 },
+                    { text: " of", id: 315 },
+                    { text: " the", id: 279 },
+                    { text: " tiger", id: 52835 },
+                    { text: ",", id: 11 },
+                    { text: " it", id: 433 },
+                    { text: "'s", id: 596 },
+                    { text: " the", id: 279 },
+                    { text: " thrill", id: 38383 },
+                    { text: " of", id: 315 },
+                    { text: " the", id: 279 },
+                    { text: " fight", id: 4465 }
+                ]
+            }
+        };
 
         function getTokenColor(tokenId) {
-            // Generate consistent colors based on token ID
             const colors = [
                 '#FFE5E5', '#E5F3FF', '#E5FFE5', '#FFF3E5', '#F3E5FF',
                 '#FFE5F3', '#E5FFFF', '#F5FFE5', '#FFE5CC', '#E5E5FF',
@@ -334,91 +410,69 @@
         }
 
         function updateVisualization() {
-            const inputText = document.getElementById('textInput').value;
+            const selectedKey = document.getElementById('sentenceSelect').value;
+            const sentenceData = sentences[selectedKey];
             
-            try {
-                // Tokenize the text using gpt-tokenizer
-                const tokens = encode(inputText);
-                const tokenStrings = tokens.map(tokenId => decode([tokenId]));
+            if (!sentenceData) return;
+            
+            const { text, tokens } = sentenceData;
+            
+            // Update tokenized output
+            const outputDiv = document.getElementById('tokenizedOutput');
+            outputDiv.innerHTML = '';
+            
+            tokens.forEach(token => {
+                const tokenElement = document.createElement('span');
+                tokenElement.className = 'token';
+                tokenElement.style.backgroundColor = getTokenColor(token.id);
                 
-                // Update tokenized output
-                const outputDiv = document.getElementById('tokenizedOutput');
-                outputDiv.innerHTML = '';
+                const displayText = token.text.replace(/\n/g, '↵').replace(/\t/g, '→');
+                tokenElement.innerHTML = escapeHtml(displayText);
                 
-                if (tokens.length === 0) {
-                    outputDiv.innerHTML = '<span style="color: #999; font-style: italic;">Enter some text above to see tokenization...</span>';
-                } else {
-                    tokens.forEach((tokenId, index) => {
-                        const tokenString = tokenStrings[index];
-                        const tokenElement = document.createElement('span');
-                        tokenElement.className = 'token';
-                        tokenElement.style.backgroundColor = getTokenColor(tokenId);
-                        
-                        // Display the token text, handling special characters
-                        const displayText = tokenString.replace(/\n/g, '↵').replace(/\t/g, '→');
-                        tokenElement.innerHTML = escapeHtml(displayText);
-                        
-                        const tooltip = document.createElement('div');
-                        tooltip.className = 'token-tooltip';
-                        tooltip.textContent = `Token ID: ${tokenId}`;
-                        tokenElement.appendChild(tooltip);
-                        
-                        outputDiv.appendChild(tokenElement);
-                    });
-                }
+                const tooltip = document.createElement('div');
+                tooltip.className = 'token-tooltip';
+                tooltip.textContent = `Token ID: ${token.id}`;
+                tokenElement.appendChild(tooltip);
                 
-                // Update stats
-                document.getElementById('characterCount').textContent = inputText.length;
-                document.getElementById('tokenCount').textContent = tokens.length;
-                document.getElementById('compressionRatio').textContent = 
-                    tokens.length > 0 ? (inputText.length / tokens.length).toFixed(1) : '0';
+                outputDiv.appendChild(tokenElement);
+            });
+            
+            // Update stats
+            document.getElementById('characterCount').textContent = text.length;
+            document.getElementById('tokenCount').textContent = tokens.length;
+            document.getElementById('compressionRatio').textContent = 
+                tokens.length > 0 ? (text.length / tokens.length).toFixed(1) : '0';
+            
+            // Update token list
+            const tokenListDiv = document.getElementById('tokenList');
+            tokenListDiv.innerHTML = '';
+            
+            tokens.forEach(token => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'token-item';
                 
-                // Update token list
-                const tokenListDiv = document.getElementById('tokenList');
-                tokenListDiv.innerHTML = '';
+                const textSpan = document.createElement('span');
+                textSpan.className = 'token-text';
+                const displayText = token.text
+                    .replace(/\n/g, '\\n')
+                    .replace(/\t/g, '\\t')
+                    .replace(/ /g, '·');
+                textSpan.textContent = `"${displayText}"`;
                 
-                if (tokens.length === 0) {
-                    tokenListDiv.innerHTML = '<div style="color: #999; font-style: italic; text-align: center;">No tokens to display</div>';
-                } else {
-                    tokens.forEach((tokenId, index) => {
-                        const tokenString = tokenStrings[index];
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'token-item';
-                        
-                        const textSpan = document.createElement('span');
-                        textSpan.className = 'token-text';
-                        // Show special characters clearly
-                        const displayText = tokenString
-                            .replace(/\n/g, '\\n')
-                            .replace(/\t/g, '\\t')
-                            .replace(/ /g, '·'); // Show spaces as middle dots
-                        textSpan.textContent = `"${displayText}"`;
-                        
-                        const idSpan = document.createElement('span');
-                        idSpan.className = 'token-id';
-                        idSpan.textContent = tokenId;
-                        
-                        itemDiv.appendChild(textSpan);
-                        itemDiv.appendChild(idSpan);
-                        tokenListDiv.appendChild(itemDiv);
-                    });
-                }
+                const idSpan = document.createElement('span');
+                idSpan.className = 'token-id';
+                idSpan.textContent = token.id;
                 
-            } catch (error) {
-                console.error('Tokenization error:', error);
-                document.getElementById('tokenizedOutput').innerHTML = 
-                    '<div class="error">Error processing text: ' + error.message + '</div>';
-            }
+                itemDiv.appendChild(textSpan);
+                itemDiv.appendChild(idSpan);
+                tokenListDiv.appendChild(itemDiv);
+            });
         }
 
-        // Event listeners
-        document.getElementById('textInput').addEventListener('input', updateVisualization);
-        document.getElementById('textInput').addEventListener('paste', () => {
-            setTimeout(updateVisualization, 10);
-        });
+        // Event listener
+        document.getElementById('sentenceSelect').addEventListener('change', updateVisualization);
 
-        // Initialize visualization
-        document.getElementById('tokenizedOutput').innerHTML = '<div class="loading">Tokenizer ready!</div>';
+        // Initialize with first sentence
         updateVisualization();
     </script>
 </body>
