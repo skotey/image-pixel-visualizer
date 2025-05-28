@@ -69,7 +69,7 @@
 
         .input-label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-weight: bold;
             color: #333;
         }
@@ -98,7 +98,7 @@
             font-weight: bold;
             margin-bottom: 15px;
             color: #333;
-            font-size: 18px;
+            font-size: 14px;
         }
 
         .tokenized-text {
@@ -192,7 +192,19 @@
             font-size: 12px;
         }
 
-        .token-list {
+        .token-array {
+            background: #2d3748;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
             background: #f8f9fa;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -254,6 +266,13 @@
                 <option value="machine">Machine intelligence is the last invention that humanity will ever need to make</option>
                 <option value="tiger">It's the eye of the tiger, it's the thrill of the fight</option>
             </select>
+        </div>
+
+        <div class="visualization-section">
+            <div class="section-title">Token Array (what AI actually sees):</div>
+            <div id="tokenArray" class="token-array">
+                <!-- Token array will appear here -->
+            </div>
         </div>
 
         <div class="visualization-section">
@@ -408,6 +427,11 @@
             if (!sentenceData) return;
             
             const { text, tokens } = sentenceData;
+            
+            // Update token array display
+            const tokenArrayDiv = document.getElementById('tokenArray');
+            const tokenIds = tokens.map(token => token.id);
+            tokenArrayDiv.textContent = `[${tokenIds.join(', ')}]`;
             
             // Update tokenized output
             const outputDiv = document.getElementById('tokenizedOutput');
