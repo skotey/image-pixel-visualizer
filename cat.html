@@ -12,48 +12,40 @@
         }
 
         body {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
             color: #333;
         }
 
         .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
+            width: 100%;
+            margin: 0;
+            background: #ffffff;
+            padding: 0;
         }
 
         .image-container {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            border: 2px solid #e9ecef;
+            background: #ffffff;
+            padding: 0;
             text-align: center;
             position: relative;
+            width: 100%;
         }
 
         .image-display {
-            border: 2px solid #ddd;
-            border-radius: 8px;
             cursor: crosshair;
-            width: 590px;
-            height: 370px;
-            margin: 0 auto;
+            width: 100%;
+            height: auto;
             display: block;
+            max-width: none;
         }
 
         .info-panel {
-            margin-top: 20px;
+            margin-top: 15px;
             padding: 15px;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 10px;
+            background: #f8f8f8;
             text-align: center;
             font-size: 14px;
         }
@@ -68,30 +60,29 @@
 
         .pixel-info span {
             font-weight: bold;
-            color: #667eea;
+            color: #333;
         }
 
         .reset-btn {
-            background: linear-gradient(45deg, #764ba2, #667eea);
+            background: #333;
             color: white;
             padding: 8px 16px;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
             margin-top: 10px;
-            transition: transform 0.2s;
+            font-family: 'Helvetica', 'Arial', sans-serif;
         }
 
         .reset-btn:hover {
-            transform: translateY(-1px);
+            background: #555;
         }
 
         @media (max-width: 768px) {
             .image-display {
                 width: 100%;
                 height: auto;
-                max-width: 400px;
             }
             
             .pixel-info {
@@ -155,9 +146,11 @@
         function processImage(img) {
             const maxSize = 37; // For ~16px pixels
             
-            // Fixed display dimensions
-            const displayWidth = 590;
-            const displayHeight = 370;
+            // Get container width for responsive sizing
+            const container = document.querySelector('.image-container');
+            const containerWidth = container.offsetWidth || 590;
+            const displayWidth = containerWidth;
+            const displayHeight = Math.round(displayWidth * (370 / 590)); // Maintain aspect ratio
             
             // Calculate matrix dimensions for analysis
             let { width: matrixWidth, height: matrixHeight } = calculateMatrixDimensions(displayWidth, displayHeight, maxSize);
@@ -167,6 +160,8 @@
             ctx = canvas.getContext('2d');
             canvas.width = displayWidth;
             canvas.height = displayHeight;
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
             
             // Create pixelated version
             const tempCanvas = document.createElement('canvas');
