@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Image Pixel Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .instructions {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .reset-btn {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: transform 0.2s;
+        }
+
+        .reset-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .image-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #e9ecef;
+            text-align: center;
+            position: relative;
+        }
+
+        .image-display {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+            width: 590px;
+            height: 370px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .pixel-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .pixel-tooltip.show {
+            opacity: 1;
+        }
+
+        .pixel-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            transform: translateX(-50%);
+        }
+
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .pixel-info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pixel-info span {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .image-display {
+                width: 100%;
+                height: auto;
+                max-width: 400px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .pixel-info {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Image Pixel Visualizer</h1>
+        
+        <div class="upload-section">
+            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">
+                📸 Upload Image
+            </button>
+        </div>
+
+        <div class="instructions hidden" id="instructions">
+            Hover over the image pixels to reveal their numerical values
+            <button class="reset-btn" onclick="resetReveal()">Reset Reveal</button>
+        </div>
+
+        <div class="image-container hidden" id="visualization">
+            <canvas id="imageCanvas" class="image-display"></canvas>
+            <div class="pixel-tooltip" id="pixelTooltip">255</div>
+            <div class="info-panel">
+                <div>Hover over pixels to see details</div>
+                <div class="pixel-info">
+                    <div>Position: <span id="positionInfo">-</span></div>
+                    <div>Grayscale Value: <span id="valueInfo">-</span></div>
+                    <div>Original RGB: <span id="rgbInfo">-</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let imageData = null;
+        let pixelMatrix = [];
+        let canvas = null;
+        let ctx = null;
+        let tooltip = null;
+
+        // Initialize
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+
+        function resetReveal() {
+            if (window.revealedPixels) {
+                window.revealedPixels.clear();
+                
+                // Redraw original image
+                ctx.putImageData(window.originalImageData, 0, 0);
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    processImage(img);
+                    document.getElementById('instructions').classList.remove('hidden');
+                    document.getElementById('visualization').classList.remove('hidden');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function processImage(img) {
+            const maxSize = 37; // For ~16px pixels (590÷37 ≈ 16px)
+            
+            // Fixed display dimensions
+            const displayWidth = 590;
+            const displayHeight = 370;
+            
+            // Calculate matrix dimensions for analysis
+            let { width: matrixWidth, height: matrixHeight } = calculateMatrixDimensions(displayWidth, displayHeight, maxSize);
+            
+            // Setup canvas
+            canvas = document.getElementById('imageCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+            
+            // Create pixelated version
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = matrixWidth;
+            tempCanvas.height = matrixHeight;
+            
+            // Draw image at matrix resolution
+            tempCtx.drawImage(img, 0, 0, matrixWidth, matrixHeight);
+            imageData = tempCtx.getImageData(0, 0, matrixWidth, matrixHeight);
+            
+            // Scale up to display size with pixelated effect
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(tempCanvas, 0, 0, displayWidth, displayHeight);
+            
+            // Store the original pixelated image
+            window.originalImageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
+            
+            // Store dimensions
+            window.matrixDimensions = { width: matrixWidth, height: matrixHeight };
+            window.displayDimensions = { width: displayWidth, height: displayHeight };
+            window.blockWidth = displayWidth / matrixWidth;
+            window.blockHeight = displayHeight / matrixHeight;
+            
+            // Create pixel matrix
+            pixelMatrix = createPixelMatrix(imageData);
+            
+            // Initialize revealed pixels tracking
+            window.revealedPixels = new Set();
+            
+            // Setup hover events
+            setupHoverEvents();
+        }
+
+        function calculateMatrixDimensions(displayWidth, displayHeight, maxSize) {
+            const aspectRatio = displayWidth / displayHeight;
+            
+            let width, height;
+            if (aspectRatio > 1) {
+                width = maxSize;
+                height = Math.round(maxSize / aspectRatio);
+            } else {
+                height = maxSize;
+                width = Math.round(maxSize * aspectRatio);
+            }
+            
+            return { width, height };
+        }
+
+        function createPixelMatrix(imageData) {
+            const { width, height, data } = imageData;
+            const matrix = [];
+            
+            for (let y = 0; y < height; y++) {
+                const row = [];
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x) * 4;
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+                    
+                    // Convert to grayscale
+                    const grayscale = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                    
+                    row.push({
+                        grayscale,
+                        r, g, b,
+                        x, y
+                    });
+                }
+                matrix.push(row);
+            }
+            
+            return matrix;
+        }
+
+        function setupHoverEvents() {
+            tooltip = document.getElementById('pixelTooltip');
+            
+            canvas.addEventListener('mousemove', handleCanvasHover);
+            canvas.addEventListener('mouseleave', handleCanvasLeave);
+        }
+
+        function handleCanvasHover(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Scale mouse coordinates to canvas coordinates
+            const canvasX = (mouseX / rect.width) * canvas.width;
+            const canvasY = (mouseY / rect.height) * canvas.height;
+            
+            // Calculate which pixel block we're in
+            const matrixX = Math.floor(canvasX / window.blockWidth);
+            const matrixY = Math.floor(canvasY / window.blockHeight);
+            
+            if (matrixX >= 0 && matrixX < window.matrixDimensions.width && 
+                matrixY >= 0 && matrixY < window.matrixDimensions.height) {
+                
+                revealPixelNumber(matrixX, matrixY);
+                updateInfoPanel(matrixX, matrixY);
+            }
+        }
+
+        function handleCanvasLeave() {
+            hidePixelInfo();
+        }
+
+        function revealPixelNumber(matrixX, matrixY) {
+            if (!pixelMatrix[matrixY] || !pixelMatrix[matrixY][matrixX]) return;
+            
+            const pixelKey = `${matrixX},${matrixY}`;
+            
+            // Only reveal if not already revealed
+            if (!window.revealedPixels.has(pixelKey)) {
+                window.revealedPixels.add(pixelKey);
+                
+                const pixel = pixelMatrix[matrixY][matrixX];
+                const blockX = matrixX * window.blockWidth;
+                const blockY = matrixY * window.blockHeight;
+                
+                // Draw the number on this pixel block
+                ctx.save();
+                
+                // Use the actual grayscale value as background color
+                const grayValue = pixel.grayscale;
+                ctx.fillStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+                ctx.fillRect(blockX, blockY, window.blockWidth, window.blockHeight);
+                
+                // Draw border
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(blockX, blockY, window.blockWidth, window.blockHeight);
+                
+                // Choose text color based on brightness (white text on dark pixels, black text on light pixels)
+                const textColor = grayValue > 127 ? '#000' : '#fff';
+                
+                // Draw the number
+                const fontSize = Math.min(window.blockWidth, window.blockHeight) * 0.4;
+                ctx.font = `bold ${fontSize}px monospace`;
+                ctx.fillStyle = textColor;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                const centerX = blockX + window.blockWidth / 2;
+                const centerY = blockY + window.blockHeight / 2;
+                
+                ctx.fillText(pixel.grayscale.toString().padStart(3, '0'), centerX, centerY);
+                
+                ctx.restore();
+            }
+        }
+
+        function updateInfoPanel(matrixX, matrixY) {
+            if (!pixelMatrix[matrixY] || !pixelMatrix[matrixY][matrixX]) return;
+            
+            const pixel = pixelMatrix[matrixY][matrixX];
+            
+            // Update info panel
+            document.getElementById('positionInfo').textContent = `(${matrixX}, ${matrixY})`;
+            document.getElementById('valueInfo').textContent = pixel.grayscale;
+            document.getElementById('rgbInfo').textContent = `RGB(${pixel.r}, ${pixel.g}, ${pixel.b})`;
+        }
+
+        function hidePixelInfo() {
+            // Clear info panel
+            document.getElementById('positionInfo').textContent = '-';
+            document.getElementById('valueInfo').textContent = '-';
+            document.getElementById('rgbInfo').textContent = '-';
+        }
+    </script>
+</body>
+</html>
