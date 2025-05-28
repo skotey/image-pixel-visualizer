@@ -311,27 +311,10 @@
     </div>
 
     <!-- Load the GPT tokenizer library from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/gpt-tokenizer@2.1.2/dist/gpt-tokenizer.umd.min.js"></script>
-    
-    <script>
-        let tokenizer = null;
-        let isLoading = true;
-
-        // Initialize the tokenizer
-        async function initTokenizer() {
-            try {
-                // Use the cl100k_base encoding (GPT-3.5/GPT-4)
-                tokenizer = await GPTTokenizer_cl100k_base.GPTTokenizer.load();
-                isLoading = false;
-                updateVisualization();
-            } catch (error) {
-                console.error('Failed to load tokenizer:', error);
-                document.getElementById('tokenizedOutput').innerHTML = 
-                    '<div class="error">Failed to load tokenizer. Please refresh the page to try again.</div>';
-                document.getElementById('tokenList').innerHTML = 
-                    '<div class="error">Tokenizer not available</div>';
-            }
-        }
+    <script type="module">
+        import { encode, decode } from 'https://cdn.skypack.dev/gpt-tokenizer';
+        
+        let isLoading = false;
 
         function getTokenColor(tokenId) {
             // Generate consistent colors based on token ID
@@ -351,16 +334,12 @@
         }
 
         function updateVisualization() {
-            if (isLoading || !tokenizer) {
-                return;
-            }
-
             const inputText = document.getElementById('textInput').value;
             
             try {
-                // Tokenize the text
-                const tokens = tokenizer.encode(inputText, 'all');
-                const tokenStrings = tokens.map(tokenId => tokenizer.decode([tokenId]));
+                // Tokenize the text using gpt-tokenizer
+                const tokens = encode(inputText);
+                const tokenStrings = tokens.map(tokenId => decode([tokenId]));
                 
                 // Update tokenized output
                 const outputDiv = document.getElementById('tokenizedOutput');
@@ -428,7 +407,7 @@
             } catch (error) {
                 console.error('Tokenization error:', error);
                 document.getElementById('tokenizedOutput').innerHTML = 
-                    '<div class="error">Error processing text. Please try different input.</div>';
+                    '<div class="error">Error processing text: ' + error.message + '</div>';
             }
         }
 
@@ -438,8 +417,9 @@
             setTimeout(updateVisualization, 10);
         });
 
-        // Initialize the tokenizer when page loads
-        initTokenizer();
+        // Initialize visualization
+        document.getElementById('tokenizedOutput').innerHTML = '<div class="loading">Tokenizer ready!</div>';
+        updateVisualization();
     </script>
 </body>
 </html>
