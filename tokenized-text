@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Tokenizer Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0;
+            background: #ffffff;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+            color: #333;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+        }
+
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #333;
+        }
+
+        .visualization-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .tokenized-text {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 100px;
+            line-height: 2;
+            font-size: 16px;
+        }
+
+        .token {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            white-space: pre;
+        }
+
+        .token:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .token-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-bottom: 5px;
+            z-index: 20;
+        }
+
+        .token:hover .token-tooltip {
+            opacity: 1;
+        }
+
+        .token-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            border: 4px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            transform: translateX(-50%);
+        }
+
+        .stats-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            display: block;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .token-list {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .token-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+
+        .token-item:last-child {
+            border-bottom: none;
+        }
+
+        .token-text {
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .token-id {
+            font-weight: bold;
+            color: #666;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>How AI Reads Text</h1>
+        
+        <div class="description">
+            Large Language Models (LLMs) don't read text the way humans do. They break text into small pieces called "tokens" and convert each piece into numbers. Hover over the colored tokens below to see their numeric IDs.
+        </div>
+
+        <div class="input-section">
+            <label class="input-label" for="textInput">Enter your text:</label>
+            <textarea 
+                id="textInput" 
+                class="text-input" 
+                placeholder="Type something here... Try: 'The cat sat on the mat'"
+            >The cat sat on the mat</textarea>
+        </div>
+
+        <div class="visualization-section">
+            <div class="section-title">Tokenized Text (hover to see token IDs):</div>
+            <div id="tokenizedOutput" class="tokenized-text">
+                <!-- Tokens will appear here -->
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span id="characterCount" class="stat-number">0</span>
+                    <span class="stat-label">Characters</span>
+                </div>
+                <div class="stat-item">
+                    <span id="tokenCount" class="stat-number">0</span>
+                    <span class="stat-label">Tokens</span>
+                </div>
+                <div class="stat-item">
+                    <span id="compressionRatio" class="stat-number">0</span>
+                    <span class="stat-label">Chars per Token</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization-section">
+            <div class="section-title">Token → Number Mapping:</div>
+            <div id="tokenList" class="token-list">
+                <!-- Token list will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple tokenizer that mimics basic LLM tokenization patterns
+        let tokenMap = new Map();
+        let nextTokenId = 1000;
+
+        // Pre-populate with common tokens
+        const commonTokens = {
+            'The': 464, 'the': 1552, ' the': 279,
+            'cat': 4719, ' cat': 2415,
+            'sat': 3332, ' sat': 7731,
+            'on': 389, ' on': 319,
+            'mat': 5637, ' mat': 6364,
+            'a': 64, ' a': 264, 'A': 32,
+            'and': 323, ' and': 323,
+            'is': 374, ' is': 374,
+            'to': 311, ' to': 311,
+            'of': 315, ' of': 315,
+            'in': 304, ' in': 304,
+            'for': 369, ' for': 369,
+            'with': 449, ' with': 449,
+            'was': 574, ' was': 574,
+            'but': 719, ' but': 719,
+            'not': 539, ' not': 539,
+            'you': 345, ' you': 345,
+            'I': 40, ' I': 40,
+            'it': 433, ' it': 433,
+            'this': 420, ' this': 420,
+            'that': 430, ' that': 430,
+            'hello': 15339, ' hello': 24748,
+            'world': 14957, ' world': 14957,
+            'AI': 15836, ' AI': 15836,
+            'text': 1495, ' text': 1495,
+            'language': 4221, ' language': 4221,
+            'model': 1342, ' model': 1342,
+            '.': 13, '!': 0, '?': 30, ',': 11, ':': 25, ';': 26,
+            ' ': 220, '\n': 198
+        };
+
+        // Initialize token map
+        Object.entries(commonTokens).forEach(([token, id]) => {
+            tokenMap.set(token, id);
+        });
+
+        function getTokenId(token) {
+            if (tokenMap.has(token)) {
+                return tokenMap.get(token);
+            }
+            // Generate a new ID for unknown tokens
+            const newId = nextTokenId++;
+            tokenMap.set(token, newId);
+            return newId;
+        }
+
+        function simpleTokenize(text) {
+            if (!text.trim()) return [];
+            
+            const tokens = [];
+            let i = 0;
+            
+            while (i < text.length) {
+                let bestMatch = '';
+                let bestLength = 0;
+                
+                // Try to find the longest matching token starting at position i
+                for (let len = Math.min(20, text.length - i); len >= 1; len--) {
+                    const candidate = text.substr(i, len);
+                    if (tokenMap.has(candidate)) {
+                        if (len > bestLength) {
+                            bestMatch = candidate;
+                            bestLength = len;
+                        }
+                    }
+                }
+                
+                if (bestMatch) {
+                    tokens.push(bestMatch);
+                    i += bestLength;
+                } else {
+                    // Handle unknown character/sequence
+                    const char = text[i];
+                    tokens.push(char);
+                    i++;
+                }
+            }
+            
+            return tokens;
+        }
+
+        function getTokenColor(tokenId) {
+            // Generate consistent colors based on token ID
+            const colors = [
+                '#FFE5E5', '#E5F3FF', '#E5FFE5', '#FFF3E5', '#F3E5FF',
+                '#FFE5F3', '#E5FFFF', '#F5FFE5', '#FFE5CC', '#E5E5FF',
+                '#CCFFE5', '#FFCCF3', '#CCF3FF', '#F3FFCC', '#FFCCCC'
+            ];
+            return colors[tokenId % colors.length];
+        }
+
+        function updateVisualization() {
+            const inputText = document.getElementById('textInput').value;
+            const tokens = simpleTokenize(inputText);
+            
+            // Update tokenized output
+            const outputDiv = document.getElementById('tokenizedOutput');
+            outputDiv.innerHTML = '';
+            
+            if (tokens.length === 0) {
+                outputDiv.innerHTML = '<span style="color: #999; font-style: italic;">Enter some text above to see tokenization...</span>';
+            } else {
+                tokens.forEach(token => {
+                    const tokenId = getTokenId(token);
+                    const tokenElement = document.createElement('span');
+                    tokenElement.className = 'token';
+                    tokenElement.style.backgroundColor = getTokenColor(tokenId);
+                    tokenElement.textContent = token;
+                    
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'token-tooltip';
+                    tooltip.textContent = `Token ID: ${tokenId}`;
+                    tokenElement.appendChild(tooltip);
+                    
+                    outputDiv.appendChild(tokenElement);
+                });
+            }
+            
+            // Update stats
+            document.getElementById('characterCount').textContent = inputText.length;
+            document.getElementById('tokenCount').textContent = tokens.length;
+            document.getElementById('compressionRatio').textContent = 
+                tokens.length > 0 ? (inputText.length / tokens.length).toFixed(1) : '0';
+            
+            // Update token list
+            const tokenListDiv = document.getElementById('tokenList');
+            tokenListDiv.innerHTML = '';
+            
+            if (tokens.length === 0) {
+                tokenListDiv.innerHTML = '<div style="color: #999; font-style: italic; text-align: center;">No tokens to display</div>';
+            } else {
+                tokens.forEach((token, index) => {
+                    const tokenId = getTokenId(token);
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'token-item';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'token-text';
+                    textSpan.textContent = `"${token}"`;
+                    
+                    const idSpan = document.createElement('span');
+                    idSpan.className = 'token-id';
+                    idSpan.textContent = tokenId;
+                    
+                    itemDiv.appendChild(textSpan);
+                    itemDiv.appendChild(idSpan);
+                    tokenListDiv.appendChild(itemDiv);
+                });
+            }
+        }
+
+        // Initialize
+        document.getElementById('textInput').addEventListener('input', updateVisualization);
+        document.getElementById('textInput').addEventListener('paste', () => {
+            setTimeout(updateVisualization, 10);
+        });
+
+        // Initial visualization
+        updateVisualization();
+    </script>
+</body>
+</html>
