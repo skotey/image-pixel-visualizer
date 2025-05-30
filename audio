@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How AI Hears Audio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            background: #ffffff;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+            color: #333;
+        }
+
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .audio-section {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .audio-info {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+
+        .waveform-container {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .waveform-canvas {
+            width: 100%;
+            height: 100%;
+            background: #1a202c;
+            border-radius: 4px;
+        }
+
+        .spectrogram-container {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .spectrogram-canvas {
+            width: 100%;
+            height: 100%;
+            background: #1a202c;
+            border-radius: 4px;
+        }
+
+        .token-section {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .token-array {
+            background: #2d3748;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+
+        .token-explanation {
+            font-size: 14px;
+            color: #666;
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .progress-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -20px;
+            top: 15px;
+            font-size: 20px;
+            color: #007bff;
+        }
+
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .step-label {
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .file-upload {
+            background: #e9ecef;
+            border: 2px dashed #ced4da;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .progress-indicator {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .progress-step:not(:last-child)::after {
+                content: '↓';
+                position: static;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>How AI Hears Audio</h1>
+        
+        <div class="description">
+            See how AI converts sound waves into numbers, just like it does with text. 
+            This shows the journey from audio → spectrogram → tokens.
+        </div>
+
+        <div class="progress-indicator">
+            <div class="progress-step">
+                <div class="step-icon">🎵</div>
+                <div class="step-label">Audio Wave</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-icon">📊</div>
+                <div class="step-label">Spectrogram</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-icon">🔢</div>
+                <div class="step-label">Tokens</div>
+            </div>
+        </div>
+
+        <div class="audio-section">
+            <div class="section-title">1. Audio Input</div>
+            
+            <audio id="audioPlayer" class="audio-player" controls crossorigin="anonymous">
+                <source src="https://upload.wikimedia.org/wikipedia/commons/a/a7/060123-John.Willinsky-The.Economics.of.Knowledge.as.a.Public.Good.ogg" type="audio/ogg">
+                <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav">
+                <source src="https://file-examples.com/storage/fe86c2b4d407299c2517ebc/2017/11/file_example_MP3_1MG.mp3" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            
+            <div class="audio-info">
+                <div id="audioStatus">Loading academic lecture from Wikimedia Commons...</div>
+                <div style="font-size: 12px; margin-top: 5px; color: #007bff;">
+                    Testing multiple audio sources - check console for loading details
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="analyzeBtn" class="btn">🎯 Analyze Audio</button>
+            <button id="generateTokensBtn" class="btn" disabled>🔢 Generate Tokens</button>
+        </div>
+
+        <div class="audio-section">
+            <div class="section-title">2. Waveform (Time Domain)</div>
+            <div class="waveform-container">
+                <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="audio-section">
+            <div class="section-title">3. Spectrogram (Frequency Domain)</div>
+            <div class="spectrogram-container">
+                <canvas id="spectrogramCanvas" class="spectrogram-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="token-section">
+            <div class="section-title">4. Audio Tokens (What AI Actually Processes)</div>
+            <div id="tokenArray" class="token-array">
+                Click "Analyze Audio" to see how the audio gets converted to numbers...
+            </div>
+            <div class="token-explanation">
+                <strong>How Audio Tokenization Works:</strong><br>
+                • The spectrogram is divided into time segments (windows)<br>
+                • Each window's frequency data becomes a feature vector<br>
+                • These vectors are quantized into discrete tokens<br>
+                • AI models like Whisper process these token sequences<br>
+                • Similar to text tokens, but representing audio features instead of words
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let audioContext;
+        let audioBuffer;
+        let analyser;
+        let source;
+        let currentAudioElement;
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const generateTokensBtn = document.getElementById('generateTokensBtn');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const spectrogramCanvas = document.getElementById('spectrogramCanvas');
+        const tokenArrayDiv = document.getElementById('tokenArray');
+
+        // Generate a simpler, more compatible speech-like audio sample
+        function generateSpeechAudio() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Create a shorter, simpler audio buffer
+                const sampleRate = 44100; // Standard sample rate
+                const duration = 3;
+                const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+                const channelData = buffer.getChannelData(0);
+
+                // Generate simpler speech-like patterns
+                for (let i = 0; i < channelData.length; i++) {
+                    const t = i / sampleRate;
+                    
+                    // Simple pitch modulation around 150Hz
+                    const pitch = 150 + 20 * Math.sin(t * 3);
+                    
+                    // Create word-like segments with pauses
+                    let amplitude = 0;
+                    const wordCycle = t % 1.0; // 1-second cycles
+                    if (wordCycle < 0.6) {
+                        amplitude = 0.3 * (1 - Math.abs(Math.sin(wordCycle * Math.PI * 5)));
+                    }
+                    
+                    // Simple harmonic content
+                    let signal = 0;
+                    signal += Math.sin(2 * Math.PI * pitch * t) * 0.5;
+                    signal += Math.sin(2 * Math.PI * pitch * 2 * t) * 0.2;
+                    signal += Math.sin(2 * Math.PI * pitch * 3 * t) * 0.1;
+                    
+                    // Add formant-like resonance
+                    signal += Math.sin(2 * Math.PI * 800 * t) * 0.15;
+                    
+                    // Apply amplitude envelope
+                    channelData[i] = signal * amplitude * 0.3;
+                }
+
+                audioBuffer = buffer;
+                updateAudioStatus('✅ Speech sample ready! Click play to hear');
+                createAudioElementFromBuffer(buffer);
+                return buffer;
+            } catch (error) {
+                console.error('Error generating speech audio:', error);
+                updateAudioStatus('❌ Error generating speech. Using fallback method...', true);
+                
+                // Try fallback with even simpler audio
+                generateFallbackAudio();
+                throw error;
+            }
+        }
+
+        // Fallback audio generation method
+        function generateFallbackAudio() {
+            try {
+                // Create audio using Web Audio API directly for playback
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                const duration = 2;
+                const sampleRate = audioContext.sampleRate;
+                const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+                const data = buffer.getChannelData(0);
+
+                // Very simple tone sequence
+                for (let i = 0; i < data.length; i++) {
+                    const t = i / sampleRate;
+                    const freq = 200 + 100 * Math.sin(t * 2);
+                    data[i] = Math.sin(2 * Math.PI * freq * t) * 0.1 * Math.exp(-t);
+                }
+
+                audioBuffer = buffer;
+                updateAudioStatus('✅ Fallback audio ready - basic demonstration');
+                
+                // Try to create audio element
+                createAudioElementFromBuffer(buffer);
+            } catch (error) {
+                console.error('Fallback audio also failed:', error);
+                updateAudioStatus('⚠️ Audio generation failed. Continuing with visualizations only.', true);
+                // Continue without audio
+                generateTokensBtn.disabled = false;
+            }
+        }
+
+        // Create audio element from buffer for playback with detailed debugging
+        function createAudioElementFromBuffer(buffer) {
+            try {
+                updateAudioStatus('🔄 Converting audio for playback...');
+                console.log('Buffer details:', {
+                    length: buffer.length,
+                    duration: buffer.duration,
+                    sampleRate: buffer.sampleRate,
+                    numberOfChannels: buffer.numberOfChannels
+                });
+                
+                // Convert buffer to WAV blob
+                const wav = bufferToWav(buffer);
+                console.log('WAV size:', wav.byteLength, 'bytes');
+                
+                const blob = new Blob([wav], { type: 'audio/wav' });
+                console.log('Blob size:', blob.size, 'bytes, type:', blob.type);
+                
+                const url = URL.createObjectURL(blob);
+                console.log('Generated URL:', url);
+                
+                // Clean up previous URL
+                if (audioPlayer.src && audioPlayer.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioPlayer.src);
+                }
+                
+                audioPlayer.src = url;
+                
+                // Set up event listeners with detailed logging
+                const onCanPlay = () => {
+                    console.log('Audio can play - duration:', audioPlayer.duration);
+                    updateAudioStatus('✅ Audio ready! Click the play button to listen');
+                    audioPlayer.removeEventListener('canplay', onCanPlay);
+                    audioPlayer.removeEventListener('error', onError);
+                    audioPlayer.removeEventListener('loadstart', onLoadStart);
+                    audioPlayer.removeEventListener('loadeddata', onLoadedData);
+                };
+                
+                const onError = (e) => {
+                    console.error('Audio element error details:', {
+                        error: e,
+                        readyState: audioPlayer.readyState,
+                        networkState: audioPlayer.networkState,
+                        src: audioPlayer.src
+                    });
+                    
+                    if (audioPlayer.error) {
+                        console.error('MediaError details:', {
+                            code: audioPlayer.error.code,
+                            message: audioPlayer.error.message
+                        });
+                    }
+                    
+                    updateAudioStatus('⚠️ Audio playback unavailable, but analysis still works', true);
+                    audioPlayer.removeEventListener('canplay', onCanPlay);
+                    audioPlayer.removeEventListener('error', onError);
+                    audioPlayer.removeEventListener('loadstart', onLoadStart);
+                    audioPlayer.removeEventListener('loadeddata', onLoadedData);
+                    
+                    // Continue with demo even if audio fails
+                    generateTokensBtn.disabled = false;
+                };
+                
+                const onLoadStart = () => {
+                    console.log('Audio load started');
+                };
+                
+                const onLoadedData = () => {
+                    console.log('Audio data loaded');
+                };
+                
+                audioPlayer.addEventListener('canplay', onCanPlay, { once: true });
+                audioPlayer.addEventListener('error', onError, { once: true });
+                audioPlayer.addEventListener('loadstart', onLoadStart, { once: true });
+                audioPlayer.addEventListener('loadeddata', onLoadedData, { once: true });
+                
+                // Force load
+                console.log('Loading audio...');
+                audioPlayer.load();
+                
+                // Also log the blob URL so you can test it directly
+                console.log('🔗 Test this URL directly in a new tab:', url);
+                
+            } catch (error) {
+                console.error('Error creating audio element:', error);
+                updateAudioStatus('⚠️ Audio playback unavailable. Demo continues with visualizations.', true);
+                // Continue with analysis features
+                generateTokensBtn.disabled = false;
+            }
+        }
+
+        // Convert AudioBuffer to WAV format with better error handling
+        function bufferToWav(buffer) {
+            try {
+                const length = buffer.length;
+                const sampleRate = buffer.sampleRate;
+                const numberOfChannels = 1; // Force mono
+                const bytesPerSample = 2;
+                const blockAlign = numberOfChannels * bytesPerSample;
+                const byteRate = sampleRate * blockAlign;
+                const dataSize = length * bytesPerSample;
+                const bufferSize = 44 + dataSize;
+
+                const arrayBuffer = new ArrayBuffer(bufferSize);
+                const view = new DataView(arrayBuffer);
+
+                // Helper function to write string
+                const writeString = (offset, string) => {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                };
+
+                // WAV file header
+                writeString(0, 'RIFF');                          // ChunkID
+                view.setUint32(4, bufferSize - 8, true);         // ChunkSize
+                writeString(8, 'WAVE');                          // Format
+                writeString(12, 'fmt ');                         // Subchunk1ID
+                view.setUint32(16, 16, true);                    // Subchunk1Size
+                view.setUint16(20, 1, true);                     // AudioFormat (PCM)
+                view.setUint16(22, numberOfChannels, true);      // NumChannels
+                view.setUint32(24, sampleRate, true);            // SampleRate
+                view.setUint32(28, byteRate, true);              // ByteRate
+                view.setUint16(32, blockAlign, true);            // BlockAlign
+                view.setUint16(34, 16, true);                    // BitsPerSample
+                writeString(36, 'data');                         // Subchunk2ID
+                view.setUint32(40, dataSize, true);              // Subchunk2Size
+
+                // Write audio data
+                const channelData = buffer.getChannelData(0);
+                let offset = 44;
+                for (let i = 0; i < length; i++) {
+                    // Clamp and convert to 16-bit PCM
+                    let sample = Math.max(-1, Math.min(1, channelData[i]));
+                    sample = sample * 0x7FFF;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+
+                return arrayBuffer;
+            } catch (error) {
+                console.error('Error converting buffer to WAV:', error);
+                throw error;
+            }
+        }
+
+        // Initialize audio context on user interaction
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        // Load audio from Wikimedia Commons with detailed logging
+        async function loadAudioFromElement() {
+            try {
+                console.log('🔍 loadAudioFromElement called');
+                console.log('🔍 Audio player ready state:', audioPlayer.readyState);
+                console.log('🔍 Audio player network state:', audioPlayer.networkState);
+                console.log('🔍 Audio player src:', audioPlayer.src);
+                console.log('🔍 Audio player currentSrc:', audioPlayer.currentSrc);
+                
+                updateAudioStatus('🔄 Processing academic lecture audio...');
+                
+                if (audioPlayer.readyState >= 2) {
+                    console.log('✅ Audio ready state is sufficient, proceeding...');
+                    
+                    try {
+                        initAudioContext();
+                        console.log('✅ Audio context initialized');
+                    } catch (contextError) {
+                        console.error('❌ Audio context initialization failed:', contextError);
+                        throw contextError;
+                    }
+                    
+                    // Try the current audio source
+                    const audioUrl = audioPlayer.currentSrc || audioPlayer.src;
+                    console.log('🔍 Fetching audio from URL:', audioUrl);
+                    
+                    try {
+                        const response = await fetch(audioUrl);
+                        console.log('🔍 Fetch response status:', response.status);
+                        console.log('🔍 Fetch response headers:', Object.fromEntries(response.headers.entries()));
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        console.log('✅ Fetch successful, getting array buffer...');
+                        const arrayBuffer = await response.arrayBuffer();
+                        console.log('✅ Array buffer received, size:', arrayBuffer.byteLength, 'bytes');
+                        
+                        console.log('🔍 Attempting to decode audio data...');
+                        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        console.log('✅ Audio decoded successfully:', {
+                            duration: audioBuffer.duration,
+                            sampleRate: audioBuffer.sampleRate,
+                            numberOfChannels: audioBuffer.numberOfChannels,
+                            length: audioBuffer.length
+                        });
+                        
+                        updateAudioStatus('✅ Academic lecture loaded! Click play to hear John Willinsky\'s talk.');
+                        generateTokensBtn.disabled = false;
+                        
+                        // Update visualizations with real speech data
+                        console.log('🔍 Updating visualizations...');
+                        drawWaveform();
+                        generateSpectrogram();
+                        console.log('✅ Visualizations updated');
+                        
+                    } catch (fetchError) {
+                        console.error('❌ Fetch or decode error:', fetchError);
+                        console.error('❌ Error details:', {
+                            name: fetchError.name,
+                            message: fetchError.message,
+                            stack: fetchError.stack
+                        });
+                        throw fetchError;
+                    }
+                } else {
+                    console.log('⏳ Audio not ready yet, ready state:', audioPlayer.readyState);
+                    console.log('⏳ Will retry in 1 second...');
+                    updateAudioStatus('⏳ Waiting for audio to be ready...');
+                    setTimeout(() => loadAudioFromElement(), 1000);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in loadAudioFromElement:', error);
+                console.error('❌ Error type:', typeof error);
+                console.error('❌ Error constructor:', error.constructor.name);
+                console.error('❌ Full error object:', error);
+                
+                updateAudioStatus('⚠️ Using demo mode - academic speech simulation', true);
+                
+                // Continue with demo functionality
+                generateTokensBtn.disabled = false;
+                drawWaveform();
+                generateSpectrogram();
+            }
+        }
+
+        // Draw waveform visualization
+        function drawWaveform() {
+            const canvas = waveformCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas dimensions
+            const containerWidth = canvas.parentElement.offsetWidth - 40;
+            const containerHeight = canvas.parentElement.offsetHeight - 40;
+            
+            canvas.width = Math.max(containerWidth, 400);
+            canvas.height = Math.max(containerHeight, 150);
+            
+            // Clear canvas
+            ctx.fillStyle = '#1a202c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (audioBuffer) {
+                // Use actual audio data
+                const data = audioBuffer.getChannelData(0);
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    const start = i * step;
+                    const end = Math.min(start + step, data.length);
+                    
+                    if (end > start) {
+                        const slice = data.slice(start, end);
+                        const min = Math.min(...slice);
+                        const max = Math.max(...slice);
+                        
+                        ctx.moveTo(i, (1 + min) * amp);
+                        ctx.lineTo(i, (1 + max) * amp);
+                    }
+                }
+                
+                ctx.stroke();
+            } else {
+                // Generate sample waveform
+                generateSampleWaveform(ctx, canvas);
+            }
+        }
+
+        // Generate sample waveform if no audio loaded
+        function generateSampleWaveform(ctx, canvas) {
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const centerY = canvas.height / 2;
+            
+            for (let x = 0; x < canvas.width; x++) {
+                const t = x / canvas.width;
+                // Complex waveform with multiple frequencies
+                let y = 0;
+                y += Math.sin(t * Math.PI * 20) * 30 * Math.exp(-t * 2);
+                y += Math.sin(t * Math.PI * 40) * 20 * Math.exp(-t * 3);
+                y += Math.sin(t * Math.PI * 60) * 15 * Math.exp(-t * 4);
+                
+                const finalY = centerY + y;
+                
+                if (x === 0) {
+                    ctx.moveTo(x, finalY);
+                } else {
+                    ctx.lineTo(x, finalY);
+                }
+            }
+            
+            ctx.stroke();
+        }
+
+        // Generate spectrogram visualization
+        function generateSpectrogram() {
+            const canvas = spectrogramCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            const containerWidth = canvas.parentElement.offsetWidth - 40;
+            const containerHeight = canvas.parentElement.offsetHeight - 40;
+            
+            canvas.width = Math.max(containerWidth, 400);
+            canvas.height = Math.max(containerHeight, 200);
+            
+            // Clear canvas
+            ctx.fillStyle = '#1a202c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            try {
+                const imageData = ctx.createImageData(canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                for (let x = 0; x < canvas.width; x++) {
+                    for (let y = 0; y < canvas.height; y++) {
+                        const index = (y * canvas.width + x) * 4;
+                        
+                        // Create realistic spectrogram pattern
+                        const freq = 1 - (y / canvas.height); // Higher frequencies at top
+                        const time = x / canvas.width;
+                        
+                        let intensity = 0;
+                        
+                        if (audioBuffer) {
+                            // Use actual audio data for more realistic pattern
+                            const sampleIndex = Math.floor(time * audioBuffer.length);
+                            const sample = audioBuffer.getChannelData(0)[sampleIndex] || 0;
+                            
+                            // Simulate frequency analysis
+                            intensity += Math.abs(sample) * Math.exp(-Math.pow((freq - 0.3), 2) * 5);
+                            intensity += Math.abs(sample) * 0.5 * Math.exp(-Math.pow((freq - 0.6), 2) * 8);
+                            intensity += Math.abs(sample) * 0.3 * Math.exp(-Math.pow((freq - 0.9), 2) * 12);
+                        } else {
+                            // Fallback pattern
+                            intensity += Math.exp(-Math.pow((freq - 0.2), 2) * 20) * Math.sin(time * 10);
+                            intensity += Math.exp(-Math.pow((freq - 0.5), 2) * 30) * Math.sin(time * 15);
+                            intensity += Math.exp(-Math.pow((freq - 0.8), 2) * 40) * Math.sin(time * 5);
+                        }
+                        
+                        intensity = Math.max(0, Math.min(1, Math.abs(intensity) * 2 + 0.1));
+                        
+                        // Color mapping (black to blue to yellow to red)
+                        if (intensity < 0.33) {
+                            const t = intensity * 3;
+                            data[index] = 0;
+                            data[index + 1] = 0;
+                            data[index + 2] = Math.floor(t * 255);
+                        } else if (intensity < 0.66) {
+                            const t = (intensity - 0.33) * 3;
+                            data[index] = Math.floor(t * 255);
+                            data[index + 1] = Math.floor(t * 255);
+                            data[index + 2] = 255;
+                        } else {
+                            const t = (intensity - 0.66) * 3;
+                            data[index] = 255;
+                            data[index + 1] = Math.floor((1 - t) * 255);
+                            data[index + 2] = 0;
+                        }
+                        data[index + 3] = 255; // Alpha
+                    }
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+            } catch (error) {
+                console.error('Error creating spectrogram:', error);
+                createFallbackSpectrogram(ctx, canvas);
+            }
+        }
+
+        // Generate audio tokens with speech-specific characteristics
+        function generateAudioTokens() {
+            const duration = audioBuffer ? audioBuffer.duration : 4;
+            const windowSize = 0.025; // 25ms windows (standard for speech)
+            const hopSize = 0.01; // 10ms hop (standard for speech)
+            
+            const numWindows = Math.floor((duration - windowSize) / hopSize);
+            const tokens = [];
+            
+            // Generate speech-specific audio tokens
+            for (let i = 0; i < numWindows; i++) {
+                const timePosition = i * hopSize / duration;
+                
+                if (audioBuffer) {
+                    // Use actual audio data to influence token generation
+                    const sampleIndex = Math.floor(timePosition * audioBuffer.length);
+                    const sample = audioBuffer.getChannelData(0)[sampleIndex] || 0;
+                    const magnitude = Math.abs(sample);
+                    
+                    // Speech tokens often cluster in specific ranges
+                    let baseToken;
+                    if (magnitude > 0.1) {
+                        // Voiced speech (vowels, voiced consonants)
+                        baseToken = 2000 + Math.floor(magnitude * 8000);
+                    } else if (magnitude > 0.02) {
+                        // Unvoiced speech (fricatives, stops)
+                        baseToken = 500 + Math.floor(magnitude * 3000);
+                    } else {
+                        // Silence or very quiet
+                        baseToken = 50 + Math.floor(magnitude * 200);
+                    }
+                    
+                    const variation = Math.floor((Math.random() - 0.5) * 500);
+                    tokens.push(Math.max(50, Math.min(15000, baseToken + variation)));
+                } else {
+                    // Fallback speech-like tokens
+                    const pattern = Math.sin(timePosition * 8) * 0.5 + 0.5;
+                    const baseToken = 1000 + Math.floor(pattern * 8000);
+                    tokens.push(baseToken);
+                }
+            }
+            
+            // Display tokens with speech context
+            const displayTokens = tokens.slice(0, 80);
+            const tokenString = `[${displayTokens.join(', ')}${tokens.length > 80 ? ', ...' : ''}]`;
+            
+            tokenArrayDiv.innerHTML = `
+                <div style="margin-bottom: 10px;">
+                    <strong>Speech Audio Tokens (${tokens.length} total, showing first ${Math.min(80, tokens.length)}):</strong>
+                </div>
+                ${tokenString}
+                <div style="margin-top: 15px; font-size: 12px; color: #a0aec0;">
+                    • Each token represents ~${(windowSize * 1000).toFixed(0)}ms of speech features<br>
+                    • Token range: ${Math.min(...tokens)} - ${Math.max(...tokens)}<br>
+                    • Audio duration: ${duration.toFixed(2)}s → ${tokens.length} tokens<br>
+                    • High values (~2000+): Voiced speech (vowels)<br>
+                    • Medium values (~500-2000): Unvoiced speech (consonants)<br>
+                    • Low values (~50-500): Silence/background
+                </div>
+            `;
+        }
+
+        // Update audio status message
+        function updateAudioStatus(message, isError = false) {
+            const statusDiv = document.getElementById('audioStatus');
+            statusDiv.textContent = message;
+            statusDiv.style.color = isError ? '#dc3545' : '#666';
+        }
+
+        // Event Listeners for Wikimedia Commons audio with detailed logging
+        audioPlayer.addEventListener('loadeddata', () => {
+            console.log('🎵 Audio event: loadeddata fired');
+            console.log('🔍 Ready state at loadeddata:', audioPlayer.readyState);
+            console.log('🔍 Duration at loadeddata:', audioPlayer.duration);
+            updateAudioStatus('✅ Academic lecture loaded! Click play to hear. Analysis ready.');
+            generateTokensBtn.disabled = false;
+            loadAudioFromElement();
+        });
+
+        audioPlayer.addEventListener('loadstart', () => {
+            console.log('🎵 Audio event: loadstart fired');
+            console.log('🔍 Network state at loadstart:', audioPlayer.networkState);
+            updateAudioStatus('🔄 Loading John Willinsky\'s academic lecture from Wikimedia...');
+        });
+
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            console.log('🎵 Audio event: loadedmetadata fired');
+            console.log('🔍 Metadata loaded - duration:', audioPlayer.duration);
+        });
+
+        audioPlayer.addEventListener('canplay', () => {
+            console.log('🎵 Audio event: canplay fired');
+            console.log('🔍 Ready state at canplay:', audioPlayer.readyState);
+            updateAudioStatus('✅ Ready! Academic lecture on "Economics of Knowledge". Click play to listen.');
+            generateTokensBtn.disabled = false;
+        });
+
+        audioPlayer.addEventListener('canplaythrough', () => {
+            console.log('🎵 Audio event: canplaythrough fired');
+        });
+
+        audioPlayer.addEventListener('progress', () => {
+            console.log('🎵 Audio event: progress fired');
+            if (audioPlayer.buffered.length > 0) {
+                const buffered = audioPlayer.buffered.end(0);
+                console.log('🔍 Buffered:', buffered, 'seconds');
+            }
+        });
+
+        audioPlayer.addEventListener('error', (e) => {
+            console.error('❌ Audio event: error fired');
+            console.error('❌ Error event object:', e);
+            console.error('❌ Audio player error property:', audioPlayer.error);
+            
+            if (audioPlayer.error) {
+                console.error('❌ MediaError details:', {
+                    code: audioPlayer.error.code,
+                    message: audioPlayer.error.message,
+                    MEDIA_ERR_ABORTED: audioPlayer.error.MEDIA_ERR_ABORTED,
+                    MEDIA_ERR_NETWORK: audioPlayer.error.MEDIA_ERR_NETWORK,
+                    MEDIA_ERR_DECODE: audioPlayer.error.MEDIA_ERR_DECODE,
+                    MEDIA_ERR_SRC_NOT_SUPPORTED: audioPlayer.error.MEDIA_ERR_SRC_NOT_SUPPORTED
+                });
+                
+                // Decode the error code
+                switch(audioPlayer.error.code) {
+                    case 1:
+                        console.error('❌ MEDIA_ERR_ABORTED: The user aborted the loading process');
+                        break;
+                    case 2:
+                        console.error('❌ MEDIA_ERR_NETWORK: A network error occurred while loading');
+                        break;
+                    case 3:
+                        console.error('❌ MEDIA_ERR_DECODE: An error occurred while decoding');
+                        break;
+                    case 4:
+                        console.error('❌ MEDIA_ERR_SRC_NOT_SUPPORTED: The audio format is not supported');
+                        break;
+                    default:
+                        console.error('❌ Unknown media error code:', audioPlayer.error.code);
+                }
+            }
+            
+            console.error('❌ Current src:', audioPlayer.currentSrc);
+            console.error('❌ Network state:', audioPlayer.networkState);
+            console.error('❌ Ready state:', audioPlayer.readyState);
+            
+            updateAudioStatus('❌ Could not load from Wikimedia. Trying fallback sources...', true);
+            generateTokensBtn.disabled = false;
+            drawWaveform();
+            generateSpectrogram();
+        });
+
+        audioPlayer.addEventListener('stalled', () => {
+            console.log('⚠️ Audio event: stalled fired');
+        });
+
+        audioPlayer.addEventListener('waiting', () => {
+            console.log('⏳ Audio event: waiting fired');
+        });
+
+        audioPlayer.addEventListener('playing', () => {
+            console.log('▶️ Audio event: playing fired');
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            console.log('⏸️ Audio event: pause fired');
+        });
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!audioBuffer) {
+                // Try to load your audio if not already loaded
+                try {
+                    await loadAudioFromElement();
+                } catch (error) {
+                    console.log('Could not load audio, using demo mode');
+                }
+            }
+            
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔄 Analyzing...';
+            
+            try {
+                drawWaveform();
+                generateSpectrogram();
+                generateTokensBtn.disabled = false;
+                
+                analyzeBtn.textContent = '✅ Analysis Complete';
+                setTimeout(() => {
+                    analyzeBtn.textContent = '🎯 Analyze Audio';
+                    analyzeBtn.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                analyzeBtn.textContent = '❌ Analysis Failed';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        generateTokensBtn.addEventListener('click', () => {
+            if (!audioBuffer) {
+                updateAudioStatus('⚠️ Please analyze audio first', true);
+                return;
+            }
+            
+            generateTokensBtn.disabled = true;
+            generateTokensBtn.textContent = '🔄 Generating...';
+            
+            setTimeout(() => {
+                generateAudioTokens();
+                generateTokensBtn.textContent = '✅ Tokens Generated';
+                
+                setTimeout(() => {
+                    generateTokensBtn.textContent = '🔢 Generate Tokens';
+                    generateTokensBtn.disabled = false;
+                }, 2000);
+            }, 1000);
+        });
+
+        // Initialize with detailed logging
+        window.addEventListener('load', () => {
+            console.log('🔍 Page loaded, initializing audio tool...');
+            
+            setTimeout(() => {
+                console.log('🔍 Initialization timeout reached');
+                console.log('🔍 Audio player element:', audioPlayer);
+                console.log('🔍 Audio player sources:', audioPlayer.children.length);
+                
+                // Log all sources with better detail
+                for (let i = 0; i < audioPlayer.children.length; i++) {
+                    const source = audioPlayer.children[i];
+                    console.log(`🔍 Source ${i}:`, {
+                        src: source.src,
+                        type: source.type,
+                        tagName: source.tagName
+                    });
+                    
+                    // Test each URL
+                    fetch(source.src, { method: 'HEAD' })
+                        .then(response => {
+                            console.log(`✅ Source ${i} reachable:`, response.status, source.src);
+                        })
+                        .catch(error => {
+                            console.error(`❌ Source ${i} unreachable:`, error.message, source.src);
+                        });
+                }
+                
+                // Test direct fetch of primary URL
+                const primaryUrl = 'https://upload.wikimedia.org/wikipedia/commons/a/a7/060123-John.Willinsky-The.Economics.of.Knowledge.as.a.Public.Good.ogg';
+                console.log('🔍 Testing direct fetch of primary URL...');
+                
+                fetch(primaryUrl, { method: 'HEAD' })
+                    .then(response => {
+                        console.log('✅ Primary URL response:', {
+                            status: response.status,
+                            headers: Object.fromEntries(response.headers.entries()),
+                            url: response.url
+                        });
+                        
+                        if (response.ok) {
+                            console.log('✅ Primary URL is accessible, trying to load audio data...');
+                            return fetch(primaryUrl);
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    })
+                    .then(response => response.arrayBuffer())
+                    .then(buffer => {
+                        console.log('✅ Successfully fetched audio data:', buffer.byteLength, 'bytes');
+                        console.log('🔍 Trying to manually set audio src...');
+                        
+                        // Try setting the src directly
+                        audioPlayer.src = primaryUrl;
+                        audioPlayer.load();
+                    })
+                    .catch(error => {
+                        console.error('❌ Direct fetch failed:', error);
+                        console.log('🔍 Will try fallback URLs...');
+                    });
+                
+                updateAudioStatus('🔄 Starting to load academic lecture...');
+                
+                // Show initial visualizations
+                console.log('🔍 Drawing initial waveform and spectrogram...');
+                drawWaveform();
+                generateSpectrogram();
+                
+                // Try to trigger audio loading if not already started
+                if (audioPlayer.readyState === 0) {
+                    console.log('🔍 Audio not started loading, calling load()...');
+                    audioPlayer.load();
+                } else {
+                    console.log('🔍 Audio already loading/loaded, ready state:', audioPlayer.readyState);
+                    if (audioPlayer.readyState >= 2) {
+                        console.log('🔍 Audio ready, calling loadAudioFromElement...');
+                        loadAudioFromElement();
+                    }
+                }
+            }, 500);
+        });
+
+        // Handle canvas resize
+        window.addEventListener('resize', () => {
+            if (audioBuffer) {
+                drawWaveform();
+                generateSpectrogram();
+            }
+        });
+    </script>
+</body>
+</html>
