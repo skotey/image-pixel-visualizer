@@ -318,17 +318,31 @@
             try {
                 initAudioContext();
                 
+                console.log('Loading audio from:', audioPlayer.src);
                 const response = await fetch(audioPlayer.src);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const arrayBuffer = await response.arrayBuffer();
                 audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 
+                console.log('Audio loaded successfully:', {
+                    duration: audioBuffer.duration,
+                    sampleRate: audioBuffer.sampleRate,
+                    length: audioBuffer.length
+                });
+                
+                // Update visualizations with real data
                 drawWaveform();
+                generateSpectrogram();
                 generateTokensBtn.disabled = false;
                 
-                console.log('Audio loaded successfully');
             } catch (error) {
                 console.error('Error loading audio:', error);
-                // Use fallback visualizations
+                updateAudioStatus('⚠️ Could not analyze audio data. Using demo visualizations.', true);
+                // Keep demo visualizations
                 drawWaveform();
                 generateSpectrogram();
                 generateTokensBtn.disabled = false;
@@ -539,18 +553,21 @@
             analyzeBtn.textContent = '🔄 Analyzing...';
             
             try {
+                updateAudioStatus('🔄 Analyzing female speech audio...');
                 await loadAudio();
-                generateSpectrogram();
-                generateTokensBtn.disabled = false;
                 
+                updateAudioStatus('✅ Analysis complete! Waveform and spectrogram updated.');
                 analyzeBtn.textContent = '✅ Analysis Complete';
+                
                 setTimeout(() => {
                     analyzeBtn.textContent = '🎯 Analyze Audio';
                     analyzeBtn.disabled = false;
+                    updateAudioStatus('✅ Female speech loaded! Click play to listen');
                 }, 2000);
             } catch (error) {
                 console.error('Analysis failed:', error);
                 analyzeBtn.textContent = '❌ Analysis Failed';
+                updateAudioStatus('❌ Analysis failed. Check console for details.', true);
                 analyzeBtn.disabled = false;
             }
         });
