@@ -259,8 +259,10 @@
         </div>
 
         <div class="controls">
-            <button id="analyzeBtn" class="btn">🎯 Analyze Audio</button>
-            <button id="generateTokensBtn" class="btn" disabled>🔢 Generate Tokens</button>
+            <button id="generateTokensBtn" class="btn">🔢 Generate Tokens</button>
+            <div style="margin-top: 10px; font-size: 14px; color: #666;">
+                ▶️ Play the audio above to see live waveform and spectrogram visualization
+            </div>
         </div>
 
         <div class="audio-section">
@@ -305,9 +307,10 @@
         let audioBuffer;
         let analyser;
         let source;
+        let animationId;
+        let isVisualizationActive = false;
 
         const audioPlayer = document.getElementById('audioPlayer');
-        const analyzeBtn = document.getElementById('analyzeBtn');
         const generateTokensBtn = document.getElementById('generateTokensBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
         const spectrogramCanvas = document.getElementById('spectrogramCanvas');
@@ -320,7 +323,7 @@
             const logMessage = `[${timestamp}] ${message}\n`;
             debugConsole.textContent += logMessage;
             debugConsole.scrollTop = debugConsole.scrollHeight;
-            console.log(message); // Also log to browser console
+            console.log(message);
         }
 
         // Initialize audio context on user interaction
@@ -330,106 +333,215 @@
             }
         }
 
-        // Load and decode audio file using alternative method
-        async function loadAudio() {
+        // Initialize live audio visualization
+        function initLiveVisualization() {
             try {
-                debugLog('🔧 loadAudio() called');
+                debugLog('🔧 Initializing live visualization...');
                 
-                debugLog('🔧 Initializing audio context...');
-                initAudioContext();
-                debugLog(`🔧 Audio context state: ${audioContext.state}`);
-                
-                // Method 1: Try direct fetch and decode (original method)
-                try {
-                    debugLog(`🔧 Method 1: Fetching from: ${audioPlayer.src}`);
-                    const response = await fetch(audioPlayer.src);
-                    debugLog(`🔧 Fetch response: ${response.status} ${response.statusText}`);
-                    
-                    if (response.ok) {
-                        const arrayBuffer = await response.arrayBuffer();
-                        debugLog(`🔧 Array buffer size: ${arrayBuffer.byteLength} bytes`);
-                        
-                        debugLog('🔧 Attempting to decode audio data...');
-                        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                        debugLog('✅ Method 1 successful - audio decoded');
-                    } else {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                } catch (decodeError) {
-                    debugLog(`❌ Method 1 failed: ${decodeError.message}`);
-                    
-                    // Method 2: Use MediaElementAudioSourceNode
-                    debugLog('🔧 Method 2: Using MediaElementAudioSourceNode...');
-                    
-                    if (audioPlayer.readyState >= 2) {
-                        // Create a media element source
-                        const source = audioContext.createMediaElementSource(audioPlayer);
-                        
-                        // Create a destination for analysis
-                        const analyser = audioContext.createAnalyser();
-                        source.connect(analyser);
-                        analyser.connect(audioContext.destination);
-                        
-                        // Get audio duration from the element
-                        const duration = audioPlayer.duration || 3;
-                        const sampleRate = audioContext.sampleRate;
-                        
-                        debugLog(`✅ Method 2 setup complete - duration: ${duration}s`);
-                        
-                        // Create a mock buffer for visualization
-                        audioBuffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
-                        const channelData = audioBuffer.getChannelData(0);
-                        
-                        // Fill with sample data (since we can't get real data easily)
-                        for (let i = 0; i < channelData.length; i++) {
-                            const t = i / sampleRate;
-                            channelData[i] = Math.sin(2 * Math.PI * 440 * t) * Math.exp(-t) * 0.1;
-                        }
-                        
-                        debugLog('✅ Method 2: Created visualization buffer');
-                    } else {
-                        throw new Error('Audio element not ready');
-                    }
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    debugLog(`🔧 Audio context created, state: ${audioContext.state}`);
                 }
+
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                    debugLog('🔧 Audio context resumed');
+                }
+
+                // Create analyser node
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.8;
                 
-                debugLog('🔧 Updating visualizations...');
-                drawWaveform();
-                generateSpectrogram();
-                generateTokensBtn.disabled = false;
-                debugLog('✅ Visualizations updated');
+                debugLog(`🔧 Analyser created - FFT size: ${analyser.fftSize}`);
+
+                // Connect audio element to analyser
+                if (!source) {
+                    source = audioContext.createMediaElementSource(audioPlayer);
+                    source.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                    debugLog('🔧 Audio source connected to analyser');
+                }
+
+                isVisualizationActive = true;
+                startVisualization();
                 
             } catch (error) {
-                debugLog(`❌ All methods failed: ${error.name}`);
-                debugLog(`❌ Error message: ${error.message}`);
-                
-                // Method 3: Pure fallback with audio element duration
-                debugLog('🔧 Method 3: Using pure fallback...');
-                const duration = audioPlayer.duration || 4;
-                debugLog(`🔧 Using audio element duration: ${duration}s`);
-                
-                // Create fallback buffer
-                const sampleRate = 44100;
-                audioBuffer = {
-                    duration: duration,
-                    sampleRate: sampleRate,
-                    length: sampleRate * duration,
-                    numberOfChannels: 1,
-                    getChannelData: function(channel) {
-                        const data = new Float32Array(this.length);
-                        for (let i = 0; i < data.length; i++) {
-                            const t = i / sampleRate;
-                            data[i] = Math.sin(2 * Math.PI * 220 * t) * Math.exp(-t * 0.5) * 0.2;
-                        }
-                        return data;
-                    }
-                };
-                
-                updateAudioStatus('⚠️ Using fallback audio analysis (audio still playable)', true);
-                drawWaveform();
-                generateSpectrogram();
-                generateTokensBtn.disabled = false;
-                debugLog('✅ Method 3: Fallback analysis ready');
+                debugLog(`❌ Visualization init failed: ${error.message}`);
+                // Fall back to static visualizations
+                drawStaticVisualizations();
             }
+        }
+
+        // Start the visualization loop
+        function startVisualization() {
+            if (!isVisualizationActive) return;
+
+            // Get frequency and time domain data
+            const bufferLength = analyser.frequencyBinCount;
+            const frequencyData = new Uint8Array(bufferLength);
+            const timeDomainData = new Uint8Array(bufferLength);
+            
+            analyser.getByteFrequencyData(frequencyData);
+            analyser.getByteTimeDomainData(timeDomainData);
+
+            // Draw live waveform
+            drawLiveWaveform(timeDomainData);
+            
+            // Draw live spectrogram
+            drawLiveSpectrogram(frequencyData);
+
+            // Continue animation
+            animationId = requestAnimationFrame(startVisualization);
+        }
+
+        // Stop visualization
+        function stopVisualization() {
+            isVisualizationActive = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            debugLog('🔧 Live visualization stopped');
+        }
+
+        // Draw live waveform
+        function drawLiveWaveform(timeDomainData) {
+            const canvas = waveformCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const container = canvas.parentElement;
+            canvas.width = Math.max(container.clientWidth - 40, 600);
+            canvas.height = Math.max(container.clientHeight - 40, 150);
+
+            // Clear canvas
+            ctx.fillStyle = '#1a202c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw waveform
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = canvas.width / timeDomainData.length;
+            let x = 0;
+
+            for (let i = 0; i < timeDomainData.length; i++) {
+                const v = timeDomainData[i] / 128.0; // Convert to 0-2 range
+                const y = (v * canvas.height) / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+        }
+
+        // Draw live spectrogram
+        function drawLiveSpectrogram(frequencyData) {
+            const canvas = spectrogramCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const container = canvas.parentElement;
+            canvas.width = Math.max(container.clientWidth - 40, 600);
+            canvas.height = Math.max(container.clientHeight - 40, 250);
+
+            // Shift existing data left by 1 pixel
+            const imageData = ctx.getImageData(1, 0, canvas.width - 1, canvas.height);
+            ctx.putImageData(imageData, 0, 0);
+
+            // Draw new frequency column on the right
+            const x = canvas.width - 1;
+            
+            for (let y = 0; y < canvas.height; y++) {
+                // Map y position to frequency bin
+                const freqIndex = Math.floor((canvas.height - y) / canvas.height * frequencyData.length);
+                const intensity = frequencyData[freqIndex] / 255.0;
+
+                // Color mapping based on intensity
+                let r, g, b;
+                if (intensity < 0.2) {
+                    // Black to blue
+                    const t = intensity * 5;
+                    r = 0;
+                    g = 0;
+                    b = Math.floor(t * 255);
+                } else if (intensity < 0.4) {
+                    // Blue to cyan
+                    const t = (intensity - 0.2) * 5;
+                    r = 0;
+                    g = Math.floor(t * 255);
+                    b = 255;
+                } else if (intensity < 0.6) {
+                    // Cyan to yellow
+                    const t = (intensity - 0.4) * 5;
+                    r = Math.floor(t * 255);
+                    g = 255;
+                    b = 255 - Math.floor(t * 255);
+                } else if (intensity < 0.8) {
+                    // Yellow to orange
+                    const t = (intensity - 0.6) * 5;
+                    r = 255;
+                    g = 255 - Math.floor(t * 128);
+                    b = 0;
+                } else {
+                    // Orange to red
+                    const t = (intensity - 0.8) * 5;
+                    r = 255;
+                    g = 127 - Math.floor(t * 127);
+                    b = 0;
+                }
+
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        // Draw static visualizations when live fails
+        function drawStaticVisualizations() {
+            debugLog('🔧 Drawing static visualizations...');
+            
+            // Static waveform
+            const waveCanvas = waveformCanvas;
+            const waveCtx = waveCanvas.getContext('2d');
+            waveCanvas.width = Math.max(waveCanvas.parentElement.clientWidth - 40, 600);
+            waveCanvas.height = 150;
+            
+            waveCtx.fillStyle = '#1a202c';
+            waveCtx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+            
+            waveCtx.strokeStyle = '#00d4ff';
+            waveCtx.lineWidth = 2;
+            waveCtx.beginPath();
+            
+            const centerY = waveCanvas.height / 2;
+            for (let x = 0; x < waveCanvas.width; x++) {
+                const t = x / waveCanvas.width;
+                const y = centerY + Math.sin(t * Math.PI * 10) * 30 * Math.sin(t * Math.PI * 2);
+                if (x === 0) waveCtx.moveTo(x, y);
+                else waveCtx.lineTo(x, y);
+            }
+            waveCtx.stroke();
+
+            // Static spectrogram
+            const specCanvas = spectrogramCanvas;
+            const specCtx = specCanvas.getContext('2d');
+            specCanvas.width = Math.max(specCanvas.parentElement.clientWidth - 40, 600);
+            specCanvas.height = 250;
+            
+            const gradient = specCtx.createLinearGradient(0, 0, specCanvas.width, specCanvas.height);
+            gradient.addColorStop(0, '#000080');
+            gradient.addColorStop(0.3, '#0080ff');
+            gradient.addColorStop(0.6, '#ffff00');
+            gradient.addColorStop(1, '#ff0000');
+            specCtx.fillStyle = gradient;
+            specCtx.fillRect(0, 0, specCanvas.width, specCanvas.height);
         }
 
         // Draw waveform visualization
@@ -717,38 +829,27 @@
             statusDiv.style.color = isError ? '#dc3545' : '#666';
         }
 
-        // Event Listeners
-        analyzeBtn.addEventListener('click', async () => {
-            debugLog('🔧 Analyze button clicked');
-            analyzeBtn.disabled = true;
-            analyzeBtn.textContent = '🔄 Analyzing...';
-            
-            try {
-                debugLog('🔧 Starting analysis...');
-                updateAudioStatus('🔄 Analyzing female speech audio...');
-                
-                debugLog('🔧 Calling loadAudio()...');
-                await loadAudio();
-                
-                debugLog(`🔧 loadAudio() completed, audioBuffer: ${audioBuffer ? 'exists' : 'null'}`);
-                
-                updateAudioStatus('✅ Analysis complete! Waveform and spectrogram updated.');
-                analyzeBtn.textContent = '✅ Analysis Complete';
-                
-                setTimeout(() => {
-                    analyzeBtn.textContent = '🎯 Analyze Audio';
-                    analyzeBtn.disabled = false;
-                    updateAudioStatus('✅ Female speech loaded! Click play to listen');
-                }, 2000);
-            } catch (error) {
-                debugLog(`❌ Analysis failed: ${error.name} - ${error.message}`);
-                analyzeBtn.textContent = '❌ Analysis Failed';
-                updateAudioStatus('❌ Analysis failed. Check debug console below.', true);
-                analyzeBtn.disabled = false;
-            }
+        // Event Listeners for live visualization
+        audioPlayer.addEventListener('play', () => {
+            debugLog('▶️ Audio started playing - initializing live visualization');
+            updateAudioStatus('🎵 Playing with live visualization');
+            initLiveVisualization();
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            debugLog('⏸️ Audio paused - stopping visualization');
+            stopVisualization();
+            updateAudioStatus('⏸️ Paused');
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            debugLog('🔚 Audio ended - stopping visualization');
+            stopVisualization();
+            updateAudioStatus('✅ Playback complete');
         });
 
         generateTokensBtn.addEventListener('click', () => {
+            debugLog('🔢 Generate tokens clicked');
             generateTokensBtn.disabled = true;
             generateTokensBtn.textContent = '🔄 Generating...';
             
@@ -765,7 +866,7 @@
 
         // Audio loading status
         audioPlayer.addEventListener('loadeddata', () => {
-            updateAudioStatus('✅ Female speech sample ready! Click play button above');
+            updateAudioStatus('✅ Female speech sample ready! Click play to see live visualization');
         });
 
         audioPlayer.addEventListener('loadstart', () => {
@@ -778,16 +879,15 @@
         });
 
         audioPlayer.addEventListener('canplay', () => {
-            updateAudioStatus('✅ Female speech loaded! Click play to listen');
+            updateAudioStatus('✅ Female speech loaded! Click play to see live waveform and spectrogram');
         });
 
-        // Initialize with sample visualizations
+        // Initialize with static visualizations
         window.addEventListener('load', () => {
             debugLog('🔧 Page loaded, initializing...');
             setTimeout(() => {
-                drawWaveform();
-                generateSpectrogram();
-                debugLog('✅ Initial visualizations drawn');
+                drawStaticVisualizations();
+                debugLog('✅ Initial static visualizations drawn');
             }, 100);
         });
 
