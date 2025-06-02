@@ -1,4 +1,33 @@
-<!DOCTYPE html>
+generateTokensBtn.addEventListener('click', () => {
+            debugLog('🔢 Generate tokens clicked');
+            generateTokensBtn.disabled = true;
+            generateTokensBtn.textContent = '🔄 Generating...';
+            
+            setTimeout(() => {
+                generateAudioTokens();
+                generateTokensBtn.textContent = '✅ Tokens Generated';
+                
+                setTimeout(() => {
+                    generateTokensBtn.textContent = '🔢 Generate Tokens';
+                    generateTokensBtn.disabled = false;
+                }, 2000);
+            }, 1000);
+        });
+
+        // Audio loading status with debugging
+        audioPlayer.addEventListener('loadstart', () => {
+            debugLog('📡 Audio loadstart event');
+            updateAudioStatus('🔄 Loading female speech sample...');
+        });
+
+        audioPlayer.addEventListener('error', (e) => {
+            debugLog(`❌ Audio error event: ${e.type}`);
+            if (audioPlayer.error) {
+                debugLog(`❌ MediaError: code=${audioPlayer.error.code}, message="${audioPlayer.error.message}"`);
+            }
+            updateAudioStatus('❌ Could not load from samkotey.dev. Check CORS settings.', true);
+            console.error('Audio error:', e);
+        });<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -832,8 +861,14 @@
         // Event Listeners for live visualization
         audioPlayer.addEventListener('play', () => {
             debugLog('▶️ Audio started playing - initializing live visualization');
+            debugLog(`🔧 Audio player state: readyState=${audioPlayer.readyState}, paused=${audioPlayer.paused}, currentTime=${audioPlayer.currentTime}`);
             updateAudioStatus('🎵 Playing with live visualization');
-            initLiveVisualization();
+            
+            // Small delay to ensure audio is actually playing
+            setTimeout(() => {
+                debugLog('🔧 Delayed initialization after play event');
+                initLiveVisualization();
+            }, 100);
         });
 
         audioPlayer.addEventListener('pause', () => {
@@ -848,37 +883,25 @@
             updateAudioStatus('✅ Playback complete');
         });
 
-        generateTokensBtn.addEventListener('click', () => {
-            debugLog('🔢 Generate tokens clicked');
-            generateTokensBtn.disabled = true;
-            generateTokensBtn.textContent = '🔄 Generating...';
-            
-            setTimeout(() => {
-                generateAudioTokens();
-                generateTokensBtn.textContent = '✅ Tokens Generated';
-                
-                setTimeout(() => {
-                    generateTokensBtn.textContent = '🔢 Generate Tokens';
-                    generateTokensBtn.disabled = false;
-                }, 2000);
-            }, 1000);
+        // Additional debug events
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (Math.random() < 0.1) { // Log occasionally
+                debugLog(`⏰ Time update: ${audioPlayer.currentTime.toFixed(2)}s / ${audioPlayer.duration.toFixed(2)}s`);
+            }
         });
 
-        // Audio loading status
+        audioPlayer.addEventListener('volumechange', () => {
+            debugLog(`🔊 Volume changed: ${audioPlayer.volume}, muted: ${audioPlayer.muted}`);
+        });
+
+        // Try to initialize on any user interaction with audio
         audioPlayer.addEventListener('loadeddata', () => {
+            debugLog('📁 Audio loadeddata event');
             updateAudioStatus('✅ Female speech sample ready! Click play to see live visualization');
         });
 
-        audioPlayer.addEventListener('loadstart', () => {
-            updateAudioStatus('🔄 Loading female speech sample...');
-        });
-
-        audioPlayer.addEventListener('error', (e) => {
-            updateAudioStatus('❌ Could not load from samkotey.dev. Check CORS settings.', true);
-            console.error('Audio error:', e);
-        });
-
         audioPlayer.addEventListener('canplay', () => {
+            debugLog('✅ Audio canplay event');
             updateAudioStatus('✅ Female speech loaded! Click play to see live waveform and spectrogram');
         });
 
