@@ -1,4 +1,16 @@
-generateTokensBtn.addEventListener('click', () => {
+generateTokensBtn.addEventListener('click', () => {        // Initialize live audio visualization
+        function initLiveVisualization() {        // Test button event listener
+        testAudioBtn.addEventListener('click', () => {
+            testAudioSupport();
+        });
+
+        // Fallback: Start simulation if real audio fails
+        setTimeout(() => {
+            if (!isVisualizationActive) {
+                debugLog('🎬 No real audio detected, starting simulation...');
+                simulateLiveVisualization();
+            }
+        }, 3000);
             debugLog('🔢 Generate tokens clicked');
             generateTokensBtn.disabled = true;
             generateTokensBtn.textContent = '🔄 Generating...';
@@ -17,7 +29,7 @@ generateTokensBtn.addEventListener('click', () => {
         // Audio loading status with debugging
         audioPlayer.addEventListener('loadstart', () => {
             debugLog('📡 Audio loadstart event');
-            updateAudioStatus('🔄 Loading female speech sample...');
+            updateAudioStatus('🔄 Loading test audio from public sources...');
         });
 
         audioPlayer.addEventListener('error', (e) => {
@@ -25,7 +37,7 @@ generateTokensBtn.addEventListener('click', () => {
             if (audioPlayer.error) {
                 debugLog(`❌ MediaError: code=${audioPlayer.error.code}, message="${audioPlayer.error.message}"`);
             }
-            updateAudioStatus('❌ Could not load from samkotey.dev. Check CORS settings.', true);
+            updateAudioStatus('❌ Could not load test audio. Trying next source...', true);
             console.error('Audio error:', e);
         });<!DOCTYPE html>
 <html lang="en">
@@ -276,14 +288,17 @@ generateTokensBtn.addEventListener('click', () => {
         <div class="audio-section">
             <div class="section-title">1. Audio Player</div>
             <audio id="audioPlayer" class="audio-player" controls>
-                <source src="https://samkotey.dev/wp-content/uploads/2025/05/female.mp3" type="audio/mpeg">
+                <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg">
+                <source src="https://file-examples.com/storage/fe86c2b4d407299c2517ebc/2017/11/file_example_MP3_1MG.mp3" type="audio/mpeg">
+                <source src="https://sample-videos.com/zip/10/mp3/mp3-sample.mp3" type="audio/mpeg">
                 Your browser does not support the audio element.
             </audio>
             <div class="audio-info">
-                <div id="audioStatus">Loading female speech sample from samkotey.dev...</div>
-                <div style="font-size: 12px; margin-top: 5px;">
-                    Female speech sample - perfect for demonstrating AI speech processing
+                <div id="audioStatus">Testing audio in Claude environment...</div>
+                <div style="font-size: 12px; margin-top: 5px; color: #ff6b6b;">
+                    ⚠️ Claude may block audio playback. For full functionality, copy this code to your own webpage.
                 </div>
+                <button id="testAudioBtn" class="btn" style="margin-top: 10px;">🧪 Test Audio Support</button>
             </div>
         </div>
 
@@ -341,6 +356,7 @@ generateTokensBtn.addEventListener('click', () => {
 
         const audioPlayer = document.getElementById('audioPlayer');
         const generateTokensBtn = document.getElementById('generateTokensBtn');
+        const testAudioBtn = document.getElementById('testAudioBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
         const spectrogramCanvas = document.getElementById('spectrogramCanvas');
         const tokenArrayDiv = document.getElementById('tokenArray');
@@ -362,8 +378,100 @@ generateTokensBtn.addEventListener('click', () => {
             }
         }
 
-        // Initialize live audio visualization
-        function initLiveVisualization() {
+        // Test audio and Web Audio API support
+        function testAudioSupport() {
+            debugLog('🧪 Testing audio support in this environment...');
+            
+            // Test 1: Audio element
+            debugLog(`🧪 Audio element support: ${!!window.HTMLAudioElement}`);
+            debugLog(`🧪 Audio player element exists: ${!!audioPlayer}`);
+            debugLog(`🧪 Audio player src: ${audioPlayer.src}`);
+            debugLog(`🧪 Audio player ready state: ${audioPlayer.readyState}`);
+            debugLog(`🧪 Audio player network state: ${audioPlayer.networkState}`);
+            
+            // Test 2: Web Audio API
+            debugLog(`🧪 AudioContext support: ${!!(window.AudioContext || window.webkitAudioContext)}`);
+            
+            try {
+                const testContext = new (window.AudioContext || window.webkitAudioContext)();
+                debugLog(`🧪 AudioContext creation: SUCCESS, state=${testContext.state}`);
+                testContext.close();
+            } catch (error) {
+                debugLog(`🧪 AudioContext creation: FAILED - ${error.message}`);
+            }
+            
+            // Test 3: Try to play audio
+            debugLog('🧪 Attempting to play audio...');
+            const playPromise = audioPlayer.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        debugLog('🧪 Audio play: SUCCESS');
+                        audioPlayer.pause();
+                    })
+                    .catch(error => {
+                        debugLog(`🧪 Audio play: FAILED - ${error.name}: ${error.message}`);
+                    });
+            } else {
+                debugLog('🧪 Audio play: No promise returned (old browser?)');
+            }
+            
+            // Test 4: Canvas support
+            debugLog(`🧪 Canvas support: ${!!window.HTMLCanvasElement}`);
+            
+            try {
+                const testCanvas = document.createElement('canvas');
+                const testCtx = testCanvas.getContext('2d');
+                debugLog(`🧪 Canvas 2D context: ${!!testCtx}`);
+            } catch (error) {
+                debugLog(`🧪 Canvas test: FAILED - ${error.message}`);
+            }
+            
+            // Test 5: Check for iframe restrictions
+            debugLog(`🧪 Window parent: ${window.parent === window ? 'STANDALONE' : 'IFRAME'}`);
+            debugLog(`🧪 Document domain: ${document.domain}`);
+            debugLog(`🧪 Location protocol: ${window.location.protocol}`);
+        }
+
+        // Simulate live visualization with fake data
+        function simulateLiveVisualization() {
+            debugLog('🎬 Starting simulated live visualization...');
+            isVisualizationActive = true;
+            
+            let frameCount = 0;
+            
+            function animateSimulation() {
+                if (!isVisualizationActive) return;
+                
+                frameCount++;
+                
+                // Generate fake audio data
+                const fakeTimeData = new Uint8Array(1024);
+                const fakeFreqData = new Uint8Array(512);
+                
+                for (let i = 0; i < fakeTimeData.length; i++) {
+                    fakeTimeData[i] = 128 + Math.sin(frameCount * 0.1 + i * 0.01) * 30;
+                }
+                
+                for (let i = 0; i < fakeFreqData.length; i++) {
+                    fakeFreqData[i] = Math.random() * 100 + Math.sin(frameCount * 0.05 + i * 0.02) * 50;
+                }
+                
+                // Draw with fake data
+                drawLiveWaveform(fakeTimeData);
+                drawLiveSpectrogram(fakeFreqData);
+                
+                if (frameCount % 60 === 0) { // Every second
+                    debugLog(`🎬 Simulation frame ${frameCount}, fake data generated`);
+                }
+                
+                requestAnimationFrame(animateSimulation);
+            }
+            
+            animateSimulation();
+            updateAudioStatus('🎬 Running simulated visualization (no real audio)');
+        }
             try {
                 debugLog('🔧 Initializing live visualization...');
                 
@@ -885,24 +993,24 @@ generateTokensBtn.addEventListener('click', () => {
 
         // Additional debug events
         audioPlayer.addEventListener('timeupdate', () => {
-            if (Math.random() < 0.1) { // Log occasionally
-                debugLog(`⏰ Time update: ${audioPlayer.currentTime.toFixed(2)}s / ${audioPlayer.duration.toFixed(2)}s`);
+            if (Math.random() < 0.05) { // Log occasionally (5% chance)
+                debugLog(`⏰ Time: ${audioPlayer.currentTime.toFixed(2)}s / ${audioPlayer.duration.toFixed(2)}s, Playing: ${!audioPlayer.paused}`);
             }
         });
 
         audioPlayer.addEventListener('volumechange', () => {
-            debugLog(`🔊 Volume changed: ${audioPlayer.volume}, muted: ${audioPlayer.muted}`);
+            debugLog(`🔊 Volume: ${audioPlayer.volume}, Muted: ${audioPlayer.muted}`);
         });
 
         // Try to initialize on any user interaction with audio
         audioPlayer.addEventListener('loadeddata', () => {
-            debugLog('📁 Audio loadeddata event');
-            updateAudioStatus('✅ Female speech sample ready! Click play to see live visualization');
+            debugLog('📁 Audio loadeddata event - audio file successfully loaded');
+            updateAudioStatus('✅ Test audio ready! Click play to see live visualization');
         });
 
         audioPlayer.addEventListener('canplay', () => {
-            debugLog('✅ Audio canplay event');
-            updateAudioStatus('✅ Female speech loaded! Click play to see live waveform and spectrogram');
+            debugLog('✅ Audio canplay event - ready for playback');
+            updateAudioStatus('✅ Audio loaded! Click play to see live waveform and spectrogram');
         });
 
         // Initialize with static visualizations
